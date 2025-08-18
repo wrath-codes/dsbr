@@ -14,7 +14,7 @@ authors = ["wrath-codes and contributors"]
 [dependencies]
 # --- error, time, utils (tiny) ---
 thiserror = { workspace = true, optional = false }
-chrono = { workspace = true, features = ["serde"] }
+chrono = { workspace = true}
 regex = { workspace = true }
 once_cell = { workspace = true }
 dashmap = { workspace = true, features = ["inline"] }
@@ -31,10 +31,13 @@ dbase = { workspace = true }                       # DBF/DBC headers & records (
 
 # Optional: only pulled with `--features polars`
 polars = { workspace = true }
+rayon = { workspace = true }
 
 # --- IO backends (all optional) ---
 suppaftp = { workspace = true }   # `--features ftp`
+encoding_rs = { workspace = true }
 async-trait = { workspace = true }
+explode = { workspace = true }
 
 reqwest = { workspace = true }
 
@@ -46,11 +49,12 @@ aws-sdk-s3 = { workspace = true }
 # proj = { workspace = true, optional = true }
 
 # Async runtime (optional; only if you truly need it in the lib—prefer binaries/examples)
-tokio = { workspace = true, optional = true, features = ["rt-multi-thread", "fs", "io-util", "macros"] }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true }
 
 # Small helpers
 itertools = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
