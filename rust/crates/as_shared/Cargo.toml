@@ -10,25 +10,6 @@ authors = ["wrath-codes and contributors"]
 # [lib]
 # crate-type = ["rlib"]
 
-[features]
-# Keep defaults LIGHT (no network, no heavy deps).
-default = ["core", "domain", "parsers", "schemas"]
-
-# Core building blocks (always small)
-core = []
-domain = []
-parsers = []
-schemas = []
-
-# Optional heavy / integration features (opt-in)
-polars = ["dep:polars"]
-ftp = ["dep:suppaftp", "dep:async-trait"]
-http = ["dep:reqwest"]
-s3 = ["dep:aws-sdk-s3", "dep:aws-config"]          # only if/when you need it
-# geo = ["dep:geo", "dep:proj"]                      # CRS transforms, optional
-
-# Examples may turn on various features at build time
-examples = []
 
 [dependencies]
 # --- error, time, utils (tiny) ---
@@ -49,16 +30,16 @@ arrow = { workspace = true, optional = false }     # schemas/types; used even wi
 dbase = { workspace = true }                       # DBF/DBC headers & records (your parser module)
 
 # Optional: only pulled with `--features polars`
-polars = { workspace = true, optional = true }
+polars = { workspace = true }
 
 # --- IO backends (all optional) ---
-suppaftp = { workspace = true, optional = true }   # `--features ftp`
-async-trait = { workspace = true, optional = true }
+suppaftp = { workspace = true }   # `--features ftp`
+async-trait = { workspace = true }
 
-reqwest = { workspace = true, optional = true}
+reqwest = { workspace = true }
 
-aws-config = { workspace = true, optional = true } # `--features s3`
-aws-sdk-s3 = { workspace = true, optional = true }
+aws-config = { workspace = true } # `--features s3`
+aws-sdk-s3 = { workspace = true }
 
 # --- geo (optional & heavy) ---
 # geo = { workspace = true, optional = true }
@@ -79,10 +60,3 @@ pretty_assertions = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
 
-[package.metadata.docs.rs]
-# Build docs with optional features so docs show the full API.
-features = ["polars"]
-no-default-features = false
-
-[badges]
-maintenance = { status = "actively-developed" }

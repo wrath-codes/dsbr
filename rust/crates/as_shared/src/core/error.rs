@@ -10,7 +10,6 @@ pub enum SharedError {
     Ftp(#[from] suppaftp::FtpError),
 
     #[error("Polars error: {0}")]
-    #[cfg(feature = "polars")]
     Polars(#[from] polars::error::PolarsError),
 
     #[error("DBase error: {0}")]
