@@ -1,0 +1,123 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Rust / Cargo cache
+target/
+*.crate
+target/*/release
+target/*/debug
+target/*/release.lock
+target/*/debug.lock
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+logs/*
+# local_settings.py
+# db.sqlite3
+# db.sqlite3-journal
+
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# UV
+uv.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Visual Studio Code
+.vscode/
+
+# Ruff stuff:
+.ruff_cache/
+
+# PyPI configuration file
+.pypirc
+
+# Reference Code
+eco-data/
+eco-data-sus/
+eco-etl-builder/
+ecoai-main/
+guidelines_python.md
+returns/
+io_plugin_template/
+
+# Rust
+Cargo.lock
+*/target/
+
+# Ignore some Github actions
+.github/workflows/sus-mirror.yml
+
+**/*downloads*/**
+

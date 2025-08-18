@@ -1,0 +1,88 @@
+[package]
+name = "arrow-sus-shared"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/wrath-codes/arrow-sus"
+description = "Foundations for Arrow-SUS: domain models, schemas, parsing, IO traits, and optional Polars/FTP tooling."
+authors = ["wrath-codes and contributors"]
+# When you later add PyO3 bindings in another crate, you'll set crate-type there.
+# [lib]
+# crate-type = ["rlib"]
+
+[features]
+# Keep defaults LIGHT (no network, no heavy deps).
+default = ["core", "domain", "parsers", "schemas"]
+
+# Core building blocks (always small)
+core = []
+domain = []
+parsers = []
+schemas = []
+
+# Optional heavy / integration features (opt-in)
+polars = ["dep:polars"]
+ftp = ["dep:suppaftp", "dep:async-trait"]
+http = ["dep:reqwest"]
+s3 = ["dep:aws-sdk-s3", "dep:aws-config"]          # only if/when you need it
+# geo = ["dep:geo", "dep:proj"]                      # CRS transforms, optional
+
+# Examples may turn on various features at build time
+examples = []
+
+[dependencies]
+# --- error, time, utils (tiny) ---
+thiserror = { workspace = true, optional = false }
+chrono = { workspace = true, features = ["serde"] }
+regex = { workspace = true }
+once_cell = { workspace = true }
+dashmap = { workspace = true, features = ["inline"] }
+bytes = { workspace = true }
+futures = { workspace = true }
+
+# logging/observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+# --- data formats / compute (keep lean by default) ---
+arrow = { workspace = true, optional = false }     # schemas/types; used even without Polars
+dbase = { workspace = true }                       # DBF/DBC headers & records (your parser module)
+
+# Optional: only pulled with `--features polars`
+polars = { workspace = true, optional = true }
+
+# --- IO backends (all optional) ---
+suppaftp = { workspace = true, optional = true }   # `--features ftp`
+async-trait = { workspace = true, optional = true }
+
+reqwest = { workspace = true, optional = true}
+
+aws-config = { workspace = true, optional = true } # `--features s3`
+aws-sdk-s3 = { workspace = true, optional = true }
+
+# --- geo (optional & heavy) ---
+# geo = { workspace = true, optional = true }
+# proj = { workspace = true, optional = true }
+
+# Async runtime (optional; only if you truly need it in the lib—prefer binaries/examples)
+tokio = { workspace = true, optional = true, features = ["rt-multi-thread", "fs", "io-util", "macros"] }
+
+# Small helpers
+itertools = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }                      # dev/tests/examples only
+tempfile = { workspace = true }
+pretty_assertions = { workspace = true }
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[package.metadata.docs.rs]
+# Build docs with optional features so docs show the full API.
+features = ["polars"]
+no-default-features = false
+
+[badges]
+maintenance = { status = "actively-developed" }
