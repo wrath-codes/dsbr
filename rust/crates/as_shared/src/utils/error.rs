@@ -8,4 +8,7 @@ pub enum UtilsError {
 
     #[error("Path error: {0}")]
     Path(#[from] crate::utils::path::PathError),
+
+    #[error("Year error: {0}")]
+    Year(#[from] crate::utils::time::YearError),
 }
