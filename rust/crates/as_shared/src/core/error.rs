@@ -35,6 +35,9 @@ pub enum SharedError {
 
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
+    
+    #[error("Utils error: {0}")]
+    Utils(#[from] crate::utils::UtilsError),
 
     #[error("Invalid filename: {0}")]
     InvalidFilename(String),

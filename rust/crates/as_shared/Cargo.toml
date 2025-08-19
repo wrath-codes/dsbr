@@ -3,12 +3,21 @@ name = "arrow-sus-shared"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/wrath-codes/arrow-sus"
-description = "Foundations for Arrow-SUS: domain models, schemas, parsing, IO traits, and optional Polars/FTP tooling."
+repository = "https://github.com/wrath-codes/arrowsus"
+homepage = "https://github.com/wrath-codes/arrowsus"
+documentation = "https://docs.rs/arrow-sus-shared"
+description = "Foundations for ArrowSUS: domain models, schemas, parsing, IO traits, and optional Polars/FTP tooling."
 authors = ["wrath-codes and contributors"]
+readme = "../../README.md"
+keywords = ["arrowsus", "arrow", "data", "parsing", "polars"]
+categories = ["data-structures", "parsing", "database"]
 # When you later add PyO3 bindings in another crate, you'll set crate-type there.
 # [lib]
 # crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 
 [dependencies]

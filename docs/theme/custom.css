@@ -1,0 +1,303 @@
+/* Custom CSS for ArrowSUS Documentation - Catppuccin Mocha Theme */
+
+:root {
+    /* Catppuccin Mocha Colors */
+    --ctp-rosewater: #f5e0dc;
+    --ctp-flamingo: #f2cdcd;
+    --ctp-pink: #f5c2e7;
+    --ctp-mauve: #cba6f7;
+    --ctp-red: #f38ba8;
+    --ctp-maroon: #eba0ac;
+    --ctp-peach: #fab387;
+    --ctp-yellow: #f9e2af;
+    --ctp-green: #a6e3a1;
+    --ctp-teal: #94e2d5;
+    --ctp-sky: #89dceb;
+    --ctp-sapphire: #74c7ec;
+    --ctp-blue: #89b4fa;
+    --ctp-lavender: #b4befe;
+    --ctp-text: #cdd6f4;
+    --ctp-subtext1: #bac2de;
+    --ctp-subtext0: #a6adc8;
+    --ctp-overlay2: #9399b2;
+    --ctp-overlay1: #7f849c;
+    --ctp-overlay0: #6c7086;
+    --ctp-surface2: #585b70;
+    --ctp-surface1: #45475a;
+    --ctp-surface0: #313244;
+    --ctp-base: #1e1e2e;
+    --ctp-mantle: #181825;
+    --ctp-crust: #11111b;
+
+    /* ArrowSUS Theme Variables using Catppuccin */
+    --arrowsus-primary: var(--ctp-blue);
+    --arrowsus-secondary: var(--ctp-overlay1);
+    --arrowsus-accent: var(--ctp-sapphire);
+    --arrowsus-success: var(--ctp-green);
+    --arrowsus-warning: var(--ctp-yellow);
+    --arrowsus-error: var(--ctp-red);
+    --arrowsus-info: var(--ctp-sky);
+    --arrowsus-purple: var(--ctp-mauve);
+    --arrowsus-pink: var(--ctp-pink);
+    --arrowsus-peach: var(--ctp-peach);
+}
+
+/* Catppuccin Mocha Theme Overrides */
+
+/* Main background and text colors */
+html {
+    background-color: var(--ctp-base) !important;
+    color: var(--ctp-text) !important;
+}
+
+body {
+    background-color: var(--ctp-base) !important;
+    color: var(--ctp-text) !important;
+}
+
+/* Sidebar styling */
+.sidebar {
+    background-color: var(--ctp-mantle) !important;
+    border-right: 1px solid var(--ctp-surface0) !important;
+}
+
+.sidebar .sidebar-scrollbox {
+    background-color: var(--ctp-mantle) !important;
+}
+
+.chapter-item {
+    color: var(--ctp-text) !important;
+}
+
+.chapter-item:hover {
+    background-color: var(--ctp-surface0) !important;
+    color: var(--ctp-blue) !important;
+}
+
+.chapter-item.expanded {
+    color: var(--ctp-blue) !important;
+}
+
+/* Header customization */
+.nav-chapters {
+    background: linear-gradient(135deg, var(--ctp-blue), var(--ctp-sapphire)) !important;
+    border-bottom: 1px solid var(--ctp-surface0) !important;
+}
+
+.menu-title {
+    color: var(--ctp-text) !important;
+}
+
+/* Content area */
+.content {
+    background-color: var(--ctp-base) !important;
+    color: var(--ctp-text) !important;
+}
+
+.page {
+    background-color: var(--ctp-base) !important;
+    color: var(--ctp-text) !important;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--ctp-blue) !important;
+    border-bottom-color: var(--ctp-surface1) !important;
+}
+
+/* Links */
+a {
+    color: var(--ctp-sapphire) !important;
+}
+
+a:hover {
+    color: var(--ctp-sky) !important;
+}
+
+a:visited {
+    color: var(--ctp-mauve) !important;
+}
+
+/* Code blocks */
+.hljs {
+    background: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+    border-radius: 6px;
+    color: var(--ctp-text) !important;
+}
+
+pre {
+    background: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+    color: var(--ctp-text) !important;
+}
+
+code {
+    background: var(--ctp-surface0) !important;
+    color: var(--ctp-text) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+}
+
+/* Inline code */
+:not(pre) > code {
+    background: var(--ctp-surface0) !important;
+    color: var(--ctp-peach) !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+    border: 1px solid var(--ctp-surface1) !important;
+}
+
+/* Blockquotes */
+blockquote {
+    background: var(--ctp-surface0) !important;
+    border-left: 4px solid var(--ctp-blue) !important;
+    color: var(--ctp-subtext1) !important;
+}
+
+/* Tables */
+table {
+    background: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+}
+
+table th {
+    background: var(--ctp-surface1) !important;
+    color: var(--ctp-text) !important;
+    border: 1px solid var(--ctp-surface2) !important;
+}
+
+table td {
+    background: var(--ctp-surface0) !important;
+    color: var(--ctp-text) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+}
+
+table tr:nth-child(even) {
+    background: var(--ctp-mantle) !important;
+}
+
+/* Search */
+#searchbar {
+    background: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+    color: var(--ctp-text) !important;
+}
+
+#searchbar:focus {
+    border-color: var(--ctp-blue) !important;
+    box-shadow: 0 0 0 2px var(--ctp-blue) !important;
+}
+
+#searchresults {
+    background: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+}
+
+.searchresult-header {
+    color: var(--ctp-blue) !important;
+}
+
+/* Navigation buttons */
+.nav-chapters .fa {
+    color: var(--ctp-text) !important;
+}
+
+.nav-chapters .fa:hover {
+    color: var(--ctp-blue) !important;
+}
+
+/* Theme toggle */
+.theme-popup {
+    background: var(--ctp-surface0) !important;
+    border: 1px solid var(--ctp-surface1) !important;
+}
+
+.theme {
+    color: var(--ctp-text) !important;
+}
+
+.theme:hover {
+    background: var(--ctp-surface1) !important;
+}
+
+/* Custom admonitions with Catppuccin colors */
+.admonition {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-left: 4px solid;
+    border-radius: 0 4px 4px 0;
+    background: var(--ctp-surface0) !important;
+    color: var(--ctp-text) !important;
+}
+
+.admonition.note {
+    border-left-color: var(--ctp-blue) !important;
+    background: var(--ctp-surface0) !important;
+}
+
+.admonition.warning {
+    border-left-color: var(--ctp-yellow) !important;
+    background: var(--ctp-surface0) !important;
+}
+
+.admonition.tip {
+    border-left-color: var(--ctp-green) !important;
+    background: var(--ctp-surface0) !important;
+}
+
+.admonition.danger {
+    border-left-color: var(--ctp-red) !important;
+    background: var(--ctp-surface0) !important;
+}
+
+.admonition.info {
+    border-left-color: var(--ctp-sky) !important;
+    background: var(--ctp-surface0) !important;
+}
+
+/* API documentation links */
+.api-link {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--ctp-blue) !important;
+    color: var(--ctp-base) !important;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    margin: 0.25rem 0;
+    border: 1px solid var(--ctp-surface1);
+}
+
+.api-link:hover {
+    background: var(--ctp-sapphire) !important;
+    color: var(--ctp-base) !important;
+}
+
+/* Copy button styling for Catppuccin */
+.copy-button {
+    background: var(--ctp-surface1) !important;
+    color: var(--ctp-text) !important;
+    border: 1px solid var(--ctp-surface2) !important;
+}
+
+.copy-button:hover {
+    background: var(--ctp-surface2) !important;
+    color: var(--ctp-blue) !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .admonition {
+        margin: 0.5rem 0;
+        padding: 0.75rem;
+    }
+    
+    table {
+        font-size: 0.875rem;
+    }
+    
+    table th,
+    table td {
+        padding: 0.5rem;
+    }
+}

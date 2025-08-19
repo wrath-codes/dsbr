@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::core::{Result, path::PathLike};
+use crate::core::{path::PathLike, Result};
     
 pub trait Info {
     fn name(&self) -> Result<String>;
@@ -37,8 +37,8 @@ impl Info for FileInfo {
 
 impl FileInfo {
     pub fn new(file_path: PathBuf) -> Result<Self> {
-        let name = file_path.file_name().unwrap().to_str().unwrap().to_string();
-        let path = file_path.to_str().unwrap().to_string();
+        let name = file_path.file_name().unwrap().as_string()?;
+        let path = file_path.as_string()?;
         let size = file_path.metadata().unwrap().len();
         let modified = file_path.metadata().unwrap().modified().unwrap().into();
         Ok(Self {
