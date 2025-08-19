@@ -51,7 +51,7 @@ pub enum MonthError {
 /// # Examples
 /// 
 /// ```
-/// use crate::arrow-sus-shared::utils::{Month, MonthValidatable};
+/// use arrow_sus_shared::utils::{Month, MonthValidatable};
 /// 
 /// // u8 validation
 /// assert!(5u8.is_valid_month());
@@ -76,6 +76,17 @@ impl MonthValidatable for u8 {
 }
 
 impl MonthValidatable for str {
+    fn is_valid_month(&self) -> bool {
+        // Try all validation methods
+        Month::is_valid_month_text(self) ||
+        Month::is_valid_english_name(self) ||
+        Month::is_valid_portuguese_name(self) ||
+        Month::is_valid_abbreviation(self) ||
+        Month::is_valid_month_number_string(self)
+    }
+}
+
+impl MonthValidatable for &str {
     fn is_valid_month(&self) -> bool {
         // Try all validation methods
         Month::is_valid_month_text(self) ||
@@ -136,7 +147,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let months = Month::all_months();
     /// assert_eq!(months.len(), 12);
@@ -154,7 +165,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::time::Month;
+    /// use arrow_sus_shared::utils::time::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let february = january.next();
@@ -179,7 +190,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let february = Month::from_number(2).unwrap();
     /// let january = february.previous();
@@ -204,7 +215,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::time::Month;
+    /// use arrow_sus_shared::utils::time::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let march = Month::from_number(3).unwrap();
@@ -222,7 +233,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let march = Month::from_number(3).unwrap();
@@ -241,7 +252,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let march = Month::from_number(3).unwrap();
@@ -262,7 +273,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let march = Month::from_number(3).unwrap();
@@ -280,7 +291,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let december = Month::from_number(12).unwrap();
@@ -297,7 +308,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// let december = Month::from_number(12).unwrap();
@@ -314,7 +325,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::time::Month;
+    /// use arrow_sus_shared::utils::time::Month;
     /// 
     /// let january = Month::from_number(1).unwrap();
     /// assert_eq!(january.month, 1);
@@ -345,7 +356,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_text("01").unwrap();
     /// assert_eq!(january.month, 1);
@@ -374,7 +385,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_english_name("January").unwrap();
     /// assert_eq!(january.month, 1);
@@ -405,7 +416,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_portuguese_name("Janeiro").unwrap();
     /// assert_eq!(january.month, 1);
@@ -424,7 +435,7 @@ impl Month {
     pub fn from_portuguese_name(name: &str) -> Result<Month> {
         Self::all_months()
             .iter()
-            .find(|month| month.name_ptbr.eq_ignore_ascii_case(name))
+            .find(|month| month.name_ptbr.to_lowercase() == name.to_lowercase())
             .copied()
             .ok_or_else(|| UtilsError::Month(
                 MonthError::not_valid_month_portuguese(name.to_string())
@@ -436,13 +447,13 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// let january = Month::from_abbreviation("Jan").unwrap();
     /// assert_eq!(january.month, 1);
     /// 
     /// // Case insensitive
-    /// let february = Month::from_abbreviation("feb").unwrap();
+    /// let february = Month::from_abbreviation("Fev").unwrap();
     /// assert_eq!(february.month, 2);
     /// 
     /// let march = Month::from_abbreviation("MAR").unwrap();
@@ -482,7 +493,7 @@ impl Month {
     fn is_valid_portuguese_name(name: &str) -> bool {
         Self::all_months()
             .iter()
-            .any(|month| month.name_ptbr.eq_ignore_ascii_case(name))
+            .any(|month| month.name_ptbr.to_lowercase() == name.to_lowercase())
     }
 
     fn is_valid_abbreviation(abbr: &str) -> bool {
@@ -504,7 +515,7 @@ impl Month {
     /// # Examples
     /// 
     /// ```
-    /// use crate::arrow-sus-shared::utils::Month;
+    /// use arrow_sus_shared::utils::Month;
     /// 
     /// // Works with u8
     /// assert!(Month::is_valid(5u8));
