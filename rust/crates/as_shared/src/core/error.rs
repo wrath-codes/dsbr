@@ -39,6 +39,9 @@ pub enum SharedError {
     #[error("Utils error: {0}")]
     Utils(#[from] crate::utils::UtilsError),
 
+    #[error("Path error: {0}")]
+    Path(#[from] crate::core::path::PathError),
+
     #[error("Invalid filename: {0}")]
     InvalidFilename(String),
     

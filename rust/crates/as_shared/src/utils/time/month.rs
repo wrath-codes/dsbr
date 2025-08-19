@@ -103,7 +103,97 @@ impl MonthValidatable for String {
     }
 }
 
+/// Trait for types that can be parsed into months using the generic from() method
+///
+/// # Examples
+///
+/// ```
+/// use arrow_sus_shared::utils::time::Month;
+/// use arrow_sus_shared::utils::time::month::MonthFromInput;
+///
+/// // u8 parsing
+/// assert!(1u8.parse_month().is_ok());
+/// assert!(13u8.parse_month().is_err());
+///
+/// // str parsing
+/// assert!("January".parse_month().is_ok());
+/// assert!("01".parse_month().is_ok());
+/// assert!("invalid".parse_month().is_err());
+///
+/// // String parsing
+/// assert!(String::from("February").parse_month().is_ok());
+/// ```
+pub trait MonthFromInput {
+    fn parse_month(self) -> Result<Month>;
+}
 
+impl MonthFromInput for u8 {
+    fn parse_month(self) -> Result<Month> {
+        // Use the existing validation logic
+        if !self.is_valid_month() {
+            return Err(UtilsError::Month(
+                MonthError::not_valid_month_number(format!("{}", self))
+            ).into());
+        }
+        Month::from_number(self)
+    }
+}
+
+impl MonthFromInput for &str {
+    fn parse_month(self) -> Result<Month> {
+        // Use the existing validation logic first
+        if !self.is_valid_month() {
+            return Err(UtilsError::Month(
+                MonthError::cannot_parse_month(format!("Unable to parse '{}' as a month", self))
+            ).into());
+        }
+        
+        // Since validation passed, try parsing in order of specificity/performance:
+        // 1. Zero-padded text (exact match, fastest)
+        if let Ok(month) = Month::from_text(self) {
+            return Ok(month);
+        }
+        
+        // 2. Number string (simple parse)
+        if let Ok(num) = self.parse::<u8>() {
+            if let Ok(month) = Month::from_number(num) {
+                return Ok(month);
+            }
+        }
+        
+        // 3. English name (common case)
+        if let Ok(month) = Month::from_english_name(self) {
+            return Ok(month);
+        }
+        
+        // 4. Abbreviation (short strings)
+        if let Ok(month) = Month::from_abbreviation(self) {
+            return Ok(month);
+        }
+        
+        // 5. Portuguese name (last resort)
+        if let Ok(month) = Month::from_portuguese_name(self) {
+            return Ok(month);
+        }
+        
+        // This should never happen since validation passed, but just in case
+        Err(UtilsError::Month(
+            MonthError::cannot_parse_month(format!("Unable to parse '{}' as a month", self))
+        ).into())
+    }
+}
+
+impl MonthFromInput for String {
+    fn parse_month(self) -> Result<Month> {
+        self.as_str().parse_month()
+    }
+}
+
+impl MonthFromInput for &String {
+    fn parse_month(self) -> Result<Month> {
+        self.as_str().parse_month()
+    }
+}
 
 impl MonthError {
     pub fn no_such_month<S: Into<String>>(msg: S) -> Self { Self::NoSuchMonth(msg.into()) }
@@ -318,6 +408,178 @@ impl Month {
     /// ```
     pub fn to_number_string(&self) -> String {
         self.month.to_string()
+    }
+
+    /// Convert to month number (1-12)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use arrow_sus_shared::utils::time::Month;
+    ///
+    /// let january = Month::from_number(1).unwrap();
+    /// assert_eq!(january.to_number(), 1);
+    ///
+    /// let december = Month::from_number(12).unwrap();
+    /// assert_eq!(december.to_number(), 12);
+    ///
+    /// let july = Month::from_english_name("July").unwrap();
+    /// assert_eq!(july.to_number(), 7);
+    /// ```
+    pub fn to_number(&self) -> u8 {
+        self.month
+    }
+
+    /// Convert to zero-padded text representation ("01", "02", etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use arrow_sus_shared::utils::time::Month;
+    ///
+    /// let january = Month::from_number(1).unwrap();
+    /// assert_eq!(january.to_text(), "01");
+    ///
+    /// let december = Month::from_number(12).unwrap();
+    /// assert_eq!(december.to_text(), "12");
+    ///
+    /// let may = Month::from_english_name("May").unwrap();
+    /// assert_eq!(may.to_text(), "05");
+    /// ```
+    pub fn to_text(&self) -> &'static str {
+        self.text
+    }
+
+    /// Convert to Portuguese name ("Janeiro", "Fevereiro", etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use arrow_sus_shared::utils::time::Month;
+    ///
+    /// let january = Month::from_number(1).unwrap();
+    /// assert_eq!(january.to_ptbr(), "Janeiro");
+    ///
+    /// let february = Month::from_number(2).unwrap();
+    /// assert_eq!(february.to_ptbr(), "Fevereiro");
+    ///
+    /// let march = Month::from_abbreviation("Mar").unwrap();
+    /// assert_eq!(march.to_ptbr(), "Março");
+    ///
+    /// let december = Month::from_english_name("December").unwrap();
+    /// assert_eq!(december.to_ptbr(), "Dezembro");
+    /// ```
+    pub fn to_ptbr(&self) -> &'static str {
+        self.name_ptbr
+    }
+
+    /// Convert to English name ("January", "February", etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use arrow_sus_shared::utils::time::Month;
+    ///
+    /// let january = Month::from_number(1).unwrap();
+    /// assert_eq!(january.to_en(), "January");
+    ///
+    /// let february = Month::from_number(2).unwrap();
+    /// assert_eq!(february.to_en(), "February");
+    ///
+    /// let march = Month::from_portuguese_name("Março").unwrap();
+    /// assert_eq!(march.to_en(), "March");
+    ///
+    /// let december = Month::from_abbreviation("Dez").unwrap();
+    /// assert_eq!(december.to_en(), "December");
+    /// ```
+    pub fn to_en(&self) -> &'static str {
+        self.name_en
+    }
+
+    /// Convert to short/abbreviated name ("Jan", "Feb", etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use arrow_sus_shared::utils::time::Month;
+    ///
+    /// let january = Month::from_number(1).unwrap();
+    /// assert_eq!(january.to_short(), "Jan");
+    ///
+    /// let february = Month::from_number(2).unwrap();
+    /// assert_eq!(february.to_short(), "Fev");
+    ///
+    /// let march = Month::from_english_name("March").unwrap();
+    /// assert_eq!(march.to_short(), "Mar");
+    ///
+    /// let august = Month::from_portuguese_name("Agosto").unwrap();
+    /// assert_eq!(august.to_short(), "Ago");
+    ///
+    /// let december = Month::from_text("12").unwrap();
+    /// assert_eq!(december.to_short(), "Dez");
+    /// ```
+    pub fn to_short(&self) -> &'static str {
+        self.name_short
+    }
+
+    /// Parse month from any valid representation
+    ///
+    /// This method attempts to parse the input using all available parsing methods:
+    /// - Number parsing (for u8 values 1-12)
+    /// - Text parsing (for zero-padded strings like "01", "02")
+    /// - Number string parsing (for strings like "1", "2")
+    /// - English name parsing (case-insensitive)
+    /// - Portuguese name parsing (case-insensitive)
+    /// - Abbreviation parsing (case-insensitive)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use arrow_sus_shared::utils::time::Month;
+    ///
+    /// // Parse from number
+    /// let jan = Month::from(1u8).unwrap();
+    /// assert_eq!(jan.month, 1);
+    ///
+    /// // Parse from zero-padded text
+    /// let feb = Month::from("02").unwrap();
+    /// assert_eq!(feb.month, 2);
+    ///
+    /// // Parse from number string
+    /// let mar = Month::from("3").unwrap();
+    /// assert_eq!(mar.month, 3);
+    ///
+    /// // Parse from English name (case-insensitive)
+    /// let apr = Month::from("April").unwrap();
+    /// assert_eq!(apr.month, 4);
+    ///
+    /// let may = Month::from("MAY").unwrap();
+    /// assert_eq!(may.month, 5);
+    ///
+    /// // Parse from Portuguese name (case-insensitive)
+    /// let jun = Month::from("Junho").unwrap();
+    /// assert_eq!(jun.month, 6);
+    ///
+    /// let jul = Month::from("JULHO").unwrap();
+    /// assert_eq!(jul.month, 7);
+    ///
+    /// // Parse from abbreviation (case-insensitive)
+    /// let aug = Month::from("Ago").unwrap();
+    /// assert_eq!(aug.month, 8);
+    ///
+    /// let sep = Month::from("SET").unwrap();
+    /// assert_eq!(sep.month, 9);
+    ///
+    /// // Invalid cases
+    /// assert!(Month::from("invalid").is_err());
+    /// assert!(Month::from("13").is_err());
+    /// assert!(Month::from(0u8).is_err());
+    /// ```
+    pub fn from<T>(input: T) -> Result<Month>
+    where
+        T: MonthFromInput,
+    {
+        input.parse_month()
     }
     
     /// Find month by number (1-12)
