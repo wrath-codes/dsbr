@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use super::info::FileInfo;
 use std::fmt;
 
-use crate::core::{path::PathLike};
+use crate::utils::path::PathLike;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -183,6 +183,636 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="path-utilities"><a class="header" href="#path-utilities">Path Utilities</a></h1>
+<p>The ArrowSUS path utilities provide a comprehensive, type-safe, and performant way to work with file system paths. The module offers robust validation, error handling, and cross-platform compatibility while maintaining excellent performance through optimized data structures.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The path utilities are built around several key components:</p>
+<ul>
+<li><strong>PathError</strong>: Comprehensive error handling for path operations</li>
+<li><strong>PathValidatable</strong>: Trait for validating paths across different types</li>
+<li><strong>PathFromInput</strong>: Trait for parsing paths from various input types</li>
+<li><strong>ValidatedPath</strong>: A wrapper that ensures paths meet validation criteria</li>
+<li><strong>PathLike</strong>: Enhanced trait for unified path operations</li>
+</ul>
+<h2 id="core-features"><a class="header" href="#core-features">Core Features</a></h2>
+<h3 id="-comprehensive-validation"><a class="header" href="#-comprehensive-validation">✅ <strong>Comprehensive Validation</strong></a></h3>
+<ul>
+<li>Path length validation (max 512 characters)</li>
+<li>Invalid character detection (Windows-compatible)</li>
+<li>Empty path detection</li>
+<li>UTF-8 validation</li>
+</ul>
+<h3 id="-cross-platform-compatibility"><a class="header" href="#-cross-platform-compatibility">✅ <strong>Cross-Platform Compatibility</strong></a></h3>
+<ul>
+<li>Uses most restrictive validation rules (Windows-based)</li>
+<li>Handles different path separators</li>
+<li>Proper Unicode support</li>
+</ul>
+<h3 id="-performance-optimized"><a class="header" href="#-performance-optimized">✅ <strong>Performance Optimized</strong></a></h3>
+<ul>
+<li>Lazy-loaded invalid character sets using <code>LazyLock</code></li>
+<li>Efficient character validation with <code>DashSet</code></li>
+<li>Zero-copy operations where possible</li>
+</ul>
+<h3 id="-type-safety"><a class="header" href="#-type-safety">✅ <strong>Type Safety</strong></a></h3>
+<ul>
+<li>Compile-time guarantees for validated paths</li>
+<li>Rich error types with detailed messages</li>
+<li>Generic traits for flexible usage</li>
+</ul>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::{PathValidatable, ValidatedPath, PathLike};
+use std::path::PathBuf;
+
+// Basic validation
+assert!("/valid/path".is_valid_path());
+assert!(!"".is_valid_path()); // Empty paths are invalid
+
+// Create validated paths
+let path = ValidatedPath::new("/home/user/documents").unwrap();
+println!("Path: {}", path.to_string_lossy());
+
+// Work with different path types uniformly
+let pathbuf = PathBuf::from("/etc/config");
+assert!(pathbuf.validate().is_ok());
+assert_eq!(pathbuf.as_string().unwrap(), "/etc/config");
+<span class="boring">}</span></code></pre></pre>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h2>
+<p>The <code>PathError</code> enum provides detailed error information for different failure scenarios:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::{PathError, ValidatedPath};
+
+// Different error types
+match ValidatedPath::new("") {
+    Err(e) =&gt; {
+        // Will be PathError::EmptyPath
+        println!("Error: {}", e);
+    }
+    Ok(_) =&gt; unreachable!(),
+}
+
+// Path too long
+let long_path = "a".repeat(600);
+match ValidatedPath::new(long_path) {
+    Err(e) =&gt; {
+        // Will be PathError::PathTooLong(600, 512)
+        println!("Error: {}", e);
+    }
+    Ok(_) =&gt; unreachable!(),
+}
+
+// Invalid characters
+match ValidatedPath::new("path/with&lt;invalid&gt;chars") {
+    Err(e) =&gt; {
+        // Will be PathError::InvalidCharacters
+        println!("Error: {}", e);
+    }
+    Ok(_) =&gt; unreachable!(),
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="error-types"><a class="header" href="#error-types">Error Types</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Error Type</th><th>Description</th><th>Example</th></tr></thead><tbody>
+<tr><td><code>InvalidPath</code></td><td>General path validation failure</td><td><code>PathError::invalid_path("bad path")</code></td></tr>
+<tr><td><code>InvalidUtf8</code></td><td>Path contains invalid UTF-8</td><td><code>PathError::invalid_utf8("path")</code></td></tr>
+<tr><td><code>EmptyPath</code></td><td>Path is empty</td><td><code>PathError::empty_path()</code></td></tr>
+<tr><td><code>PathTooLong</code></td><td>Path exceeds maximum length</td><td><code>PathError::path_too_long(600, 512)</code></td></tr>
+<tr><td><code>InvalidCharacters</code></td><td>Path contains forbidden characters</td><td><code>PathError::invalid_characters("path&lt;&gt;")</code></td></tr>
+<tr><td><code>CannotConvertPath</code></td><td>Path conversion failed</td><td><code>PathError::cannot_convert_path("reason")</code></td></tr>
+<tr><td><code>CannotParsePath</code></td><td>Path parsing failed</td><td><code>PathError::cannot_parse_path("reason")</code></td></tr>
+<tr><td><code>PathNotFound</code></td><td>Path does not exist</td><td><code>PathError::path_not_found("/missing")</code></td></tr>
+<tr><td><code>NotAbsolute</code></td><td>Path is not absolute when required</td><td><code>PathError::not_absolute("relative/path")</code></td></tr>
+<tr><td><code>NotRelative</code></td><td>Path is not relative when required</td><td><code>PathError::not_relative("/absolute/path")</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="validation"><a class="header" href="#validation">Validation</a></h2>
+<h3 id="pathvalidatable-trait"><a class="header" href="#pathvalidatable-trait">PathValidatable Trait</a></h3>
+<p>The <code>PathValidatable</code> trait provides validation methods for any path-like type:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::PathValidatable;
+use std::path::{Path, PathBuf};
+
+// String validation
+assert!("/valid/path".is_valid_path());
+assert!("relative/path".is_valid_path());
+assert!(!"".is_valid_path()); // Empty
+assert!(!"path/with\0null".is_valid_path()); // Invalid character
+
+// PathBuf validation
+let pathbuf = PathBuf::from("/home/user");
+assert!(pathbuf.is_valid_path());
+assert!(pathbuf.is_absolute_path());
+assert!(!pathbuf.is_relative_path());
+
+// Character validation
+assert!("valid/path/file.txt".has_valid_characters());
+assert!(!"path/with&lt;bracket".has_valid_characters());
+assert!(!"path/with&gt;bracket".has_valid_characters());
+assert!(!"path/with:colon".has_valid_characters());
+assert!(!"path/with\"quote".has_valid_characters());
+assert!(!"path/with|pipe".has_valid_characters());
+assert!(!"path/with?question".has_valid_characters());
+assert!(!"path/with*asterisk".has_valid_characters());
+
+// Length validation
+let long_path = "a".repeat(513);
+assert!(!long_path.has_valid_length());
+let valid_path = "a".repeat(512);
+assert!(valid_path.has_valid_length());
+<span class="boring">}</span></code></pre></pre>
+<h3 id="validation-methods"><a class="header" href="#validation-methods">Validation Methods</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th><th>Returns</th></tr></thead><tbody>
+<tr><td><code>is_valid_path()</code></td><td>Complete path validation</td><td><code>bool</code></td></tr>
+<tr><td><code>is_absolute_path()</code></td><td>Check if path is absolute</td><td><code>bool</code></td></tr>
+<tr><td><code>is_relative_path()</code></td><td>Check if path is relative</td><td><code>bool</code></td></tr>
+<tr><td><code>has_valid_length()</code></td><td>Check path length (≤512 chars)</td><td><code>bool</code></td></tr>
+<tr><td><code>has_valid_characters()</code></td><td>Check for invalid characters</td><td><code>bool</code></td></tr>
+</tbody></table>
+</div>
+<h3 id="supported-types"><a class="header" href="#supported-types">Supported Types</a></h3>
+<p>The <code>PathValidatable</code> trait is implemented for:</p>
+<ul>
+<li><code>str</code> and <code>&amp;str</code></li>
+<li><code>String</code> and <code>&amp;String</code></li>
+<li><code>Path</code> and <code>&amp;Path</code></li>
+<li><code>PathBuf</code></li>
+<li><code>OsStr</code> and <code>&amp;OsStr</code></li>
+<li><code>OsString</code> and <code>&amp;OsString</code></li>
+</ul>
+<h2 id="path-parsing"><a class="header" href="#path-parsing">Path Parsing</a></h2>
+<h3 id="pathfrominput-trait"><a class="header" href="#pathfrominput-trait">PathFromInput Trait</a></h3>
+<p>Convert various input types into validated paths:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::{PathFromInput, ValidatedPath};
+use std::path::PathBuf;
+
+// String parsing
+let path = "/valid/path".parse_path().unwrap();
+assert_eq!(path.as_path().to_str().unwrap(), "/valid/path");
+
+// PathBuf parsing
+let pathbuf = PathBuf::from("/another/path");
+let path = pathbuf.parse_path().unwrap();
+assert_eq!(path.into_path_buf(), PathBuf::from("/another/path"));
+
+// Error handling
+assert!("".parse_path().is_err()); // Empty path
+assert!("path/with\0null".parse_path().is_err()); // Invalid characters
+
+// Generic parsing
+let path = ValidatedPath::new("/home/user").unwrap();
+assert_eq!(path.to_string_lossy(), "/home/user");
+<span class="boring">}</span></code></pre></pre>
+<h2 id="validatedpath"><a class="header" href="#validatedpath">ValidatedPath</a></h2>
+<p>The <code>ValidatedPath</code> struct ensures that paths meet all validation criteria:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::ValidatedPath;
+use std::path::PathBuf;
+
+// Create validated paths
+let path = ValidatedPath::new("/home/user/documents").unwrap();
+
+// Path operations
+assert!(path.is_absolute());
+assert!(!path.is_relative());
+assert_eq!(path.file_name().unwrap(), "documents");
+assert_eq!(path.parent().unwrap(), Path::new("/home/user"));
+
+// Join paths (with validation)
+let config_path = path.join("config.toml").unwrap();
+assert_eq!(config_path.to_string_lossy(), "/home/user/documents/config.toml");
+
+// Convert back to standard types
+let pathbuf: PathBuf = path.into_path_buf();
+let path_ref: &amp;Path = path.as_path();
+<span class="boring">}</span></code></pre></pre>
+<h3 id="validatedpath-methods"><a class="header" href="#validatedpath-methods">ValidatedPath Methods</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th><th>Returns</th></tr></thead><tbody>
+<tr><td><code>new(input)</code></td><td>Create from any path-like input</td><td><code>Result&lt;ValidatedPath&gt;</code></td></tr>
+<tr><td><code>into_path_buf()</code></td><td>Convert to PathBuf</td><td><code>PathBuf</code></td></tr>
+<tr><td><code>as_path()</code></td><td>Get Path reference</td><td><code>&amp;Path</code></td></tr>
+<tr><td><code>is_absolute()</code></td><td>Check if absolute</td><td><code>bool</code></td></tr>
+<tr><td><code>is_relative()</code></td><td>Check if relative</td><td><code>bool</code></td></tr>
+<tr><td><code>file_name()</code></td><td>Get filename component</td><td><code>Option&lt;&amp;OsStr&gt;</code></td></tr>
+<tr><td><code>parent()</code></td><td>Get parent directory</td><td><code>Option&lt;&amp;Path&gt;</code></td></tr>
+<tr><td><code>extension()</code></td><td>Get file extension</td><td><code>Option&lt;&amp;OsStr&gt;</code></td></tr>
+<tr><td><code>join(path)</code></td><td>Join with another path</td><td><code>Result&lt;ValidatedPath&gt;</code></td></tr>
+<tr><td><code>to_string_lossy()</code></td><td>Convert to string</td><td><code>Cow&lt;str&gt;</code></td></tr>
+</tbody></table>
+</div>
+<h3 id="static-validation-methods"><a class="header" href="#static-validation-methods">Static Validation Methods</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::ValidatedPath;
+use std::path::PathBuf;
+
+// Quick validation without creating instance
+assert!(ValidatedPath::is_valid("/valid/path"));
+assert!(!ValidatedPath::is_valid(""));
+assert!(!ValidatedPath::is_valid("path/with\0null"));
+
+// Works with different types
+assert!(ValidatedPath::is_valid(String::from("/string/path")));
+assert!(ValidatedPath::is_valid(PathBuf::from("/pathbuf/path")));
+
+// Detailed validation with error info
+assert!(ValidatedPath::validate("/valid/path").is_ok());
+assert!(ValidatedPath::validate("").is_err());
+assert!(ValidatedPath::validate("path/with\0null").is_err());
+
+// Test path length validation
+let long_path = "a".repeat(513);
+assert!(ValidatedPath::validate(long_path).is_err());
+<span class="boring">}</span></code></pre></pre>
+<h2 id="pathlike-trait"><a class="header" href="#pathlike-trait">PathLike Trait</a></h2>
+<p>The <code>PathLike</code> trait provides a unified interface for working with different path types:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::PathLike;
+use std::path::PathBuf;
+
+// Works with PathBuf
+let pathbuf = PathBuf::from("/valid/path");
+assert_eq!(pathbuf.as_string().unwrap(), "/valid/path");
+assert!(pathbuf.validate().is_ok());
+assert!(pathbuf.exists()); // Check filesystem
+assert!(pathbuf.is_dir());
+
+// Works with &amp;str
+let path_str = "/another/path";
+assert_eq!(path_str.as_string().unwrap(), "/another/path");
+assert!(path_str.validate().is_ok());
+
+// Works with String
+let path_string = String::from("/string/path");
+assert_eq!(path_string.as_string().unwrap(), "/string/path");
+assert!(path_string.validate().is_ok());
+
+// Filesystem operations
+if path_str.exists() {
+    if path_str.is_file() {
+        println!("It's a file");
+    } else if path_str.is_dir() {
+        println!("It's a directory");
+    }
+}
+
+// Get canonical path
+let canonical = pathbuf.canonicalize().unwrap();
+println!("Canonical path: {}", canonical.display());
+<span class="boring">}</span></code></pre></pre>
+<h3 id="pathlike-methods"><a class="header" href="#pathlike-methods">PathLike Methods</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th><th>Returns</th></tr></thead><tbody>
+<tr><td><code>as_path()</code></td><td>Get Path reference</td><td><code>Result&lt;&amp;Path&gt;</code></td></tr>
+<tr><td><code>to_path_buf()</code></td><td>Convert to PathBuf</td><td><code>Result&lt;PathBuf&gt;</code></td></tr>
+<tr><td><code>as_string()</code></td><td>Convert to String</td><td><code>Result&lt;String&gt;</code></td></tr>
+<tr><td><code>validate()</code></td><td>Validate the path</td><td><code>Result&lt;()&gt;</code></td></tr>
+<tr><td><code>exists()</code></td><td>Check if path exists</td><td><code>bool</code></td></tr>
+<tr><td><code>is_file()</code></td><td>Check if path is a file</td><td><code>bool</code></td></tr>
+<tr><td><code>is_dir()</code></td><td>Check if path is a directory</td><td><code>bool</code></td></tr>
+<tr><td><code>canonicalize()</code></td><td>Get canonical absolute path</td><td><code>Result&lt;PathBuf&gt;</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
+<p>The path utilities are designed for high performance:</p>
+<h3 id="optimized-data-structures"><a class="header" href="#optimized-data-structures">Optimized Data Structures</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Invalid characters are stored in a high-performance hash set
+use std::sync::LazyLock;
+use dashmap::DashSet;
+
+pub static INVALID_PATH_CHARS: LazyLock&lt;DashSet&lt;char&gt;&gt; = LazyLock::new(|| {
+    let chars = DashSet::new();
+    // Populated with invalid characters: &lt; &gt; : " | ? * and control chars
+    chars
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="efficient-validation"><a class="header" href="#efficient-validation">Efficient Validation</a></h3>
+<ul>
+<li><strong>Lazy Loading</strong>: Invalid character set is only initialized when first used</li>
+<li><strong>Fast Lookups</strong>: <code>DashSet</code> provides O(1) character validation</li>
+<li><strong>Zero-Copy</strong>: String operations avoid unnecessary allocations where possible</li>
+<li><strong>Early Returns</strong>: Validation stops at first failure</li>
+</ul>
+<h3 id="benchmarking"><a class="header" href="#benchmarking">Benchmarking</a></h3>
+<p>The validation is designed to handle thousands of path validations efficiently:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Example: Validating 1000 paths should complete in microseconds
+let paths: Vec&lt;&amp;str&gt; = vec!["/valid/path"; 1000];
+let start = std::time::Instant::now();
+
+for path in paths {
+    assert!(path.is_valid_path());
+}
+
+let duration = start.elapsed();
+// Should complete in well under 1ms
+assert!(duration.as_millis() &lt; 1);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<h3 id="path-length-limit"><a class="header" href="#path-length-limit">Path Length Limit</a></h3>
+<p>The maximum path length is configurable via a constant:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Maximum allowed path length (platform-dependent, using conservative value)
+pub const MAX_PATH_LENGTH: usize = 512;
+<span class="boring">}</span></code></pre></pre>
+<p>This conservative limit ensures compatibility across different platforms:</p>
+<ul>
+<li><strong>Windows</strong>: 260 characters (legacy), 32,767 (with long path support)</li>
+<li><strong>Linux</strong>: 4096 characters</li>
+<li><strong>macOS</strong>: 1024 characters</li>
+</ul>
+<h3 id="invalid-characters"><a class="header" href="#invalid-characters">Invalid Characters</a></h3>
+<p>The system uses Windows-compatible restrictions for maximum portability:</p>
+<ul>
+<li><code>&lt;</code> <code>&gt;</code> <code>:</code> <code>"</code> <code>|</code> <code>?</code> <code>*</code> (Windows reserved)</li>
+<li>Control characters (0-31)</li>
+<li>Null character (<code>\0</code>)</li>
+</ul>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
+<h3 id="1-use-validatedpath-for-guaranteed-safety"><a class="header" href="#1-use-validatedpath-for-guaranteed-safety">1. Use ValidatedPath for Guaranteed Safety</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::ValidatedPath;
+
+// Good: Validation happens once at creation
+let path = ValidatedPath::new(user_input)?;
+process_path(path);
+
+// Less ideal: Repeated validation
+if user_input.is_valid_path() {
+    let pathbuf = PathBuf::from(user_input);
+    if pathbuf.is_valid_path() { // Redundant check
+        process_pathbuf(pathbuf);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="2-handle-errors-appropriately"><a class="header" href="#2-handle-errors-appropriately">2. Handle Errors Appropriately</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::{ValidatedPath, PathError};
+
+match ValidatedPath::new(user_input) {
+    Ok(path) =&gt; {
+        // Use validated path
+        process_file(&amp;path);
+    }
+    Err(e) =&gt; {
+        match e.downcast_ref::&lt;PathError&gt;() {
+            Some(PathError::EmptyPath) =&gt; {
+                eprintln!("Please provide a path");
+            }
+            Some(PathError::PathTooLong(actual, max)) =&gt; {
+                eprintln!("Path too long: {} characters (max: {})", actual, max);
+            }
+            Some(PathError::InvalidCharacters(msg)) =&gt; {
+                eprintln!("Invalid characters in path: {}", msg);
+            }
+            _ =&gt; {
+                eprintln!("Path validation failed: {}", e);
+            }
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="3-leverage-generic-traits"><a class="header" href="#3-leverage-generic-traits">3. Leverage Generic Traits</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::{PathValidatable, PathLike};
+
+// Generic function that works with any path type
+fn process_any_path&lt;P&gt;(path: P) -&gt; Result&lt;String, Box&lt;dyn std::error::Error&gt;&gt;
+where
+    P: PathLike + PathValidatable,
+{
+    // Validate first
+    if !path.is_valid_path() {
+        return Err("Invalid path".into());
+    }
+    
+    // Use unified interface
+    let path_string = path.as_string()?;
+    
+    // Check filesystem
+    if path.exists() {
+        Ok(format!("Found: {}", path_string))
+    } else {
+        Ok(format!("Not found: {}", path_string))
+    }
+}
+
+// Works with any path type
+let result1 = process_any_path("/some/path")?;
+let result2 = process_any_path(PathBuf::from("/other/path"))?;
+let result3 = process_any_path(String::from("/string/path"))?;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="4-efficient-batch-validation"><a class="header" href="#4-efficient-batch-validation">4. Efficient Batch Validation</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::PathValidatable;
+
+// Efficient batch processing
+fn validate_paths(paths: &amp;[&amp;str]) -&gt; Vec&lt;&amp;str&gt; {
+    paths
+        .iter()
+        .filter(|path| path.is_valid_path())
+        .copied()
+        .collect()
+}
+
+// Or with detailed error reporting
+fn validate_paths_detailed(paths: &amp;[&amp;str]) -&gt; (Vec&lt;&amp;str&gt;, Vec&lt;(&amp;str, String)&gt;) {
+    let mut valid = Vec::new();
+    let mut invalid = Vec::new();
+    
+    for &amp;path in paths {
+        if path.is_valid_path() {
+            valid.push(path);
+        } else {
+            let reason = if path.is_empty() {
+                "Empty path".to_string()
+            } else if !path.has_valid_length() {
+                format!("Too long: {} chars", path.len())
+            } else if !path.has_valid_characters() {
+                "Invalid characters".to_string()
+            } else {
+                "Unknown validation error".to_string()
+            };
+            invalid.push((path, reason));
+        }
+    }
+    
+    (valid, invalid)
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="integration-examples"><a class="header" href="#integration-examples">Integration Examples</a></h2>
+<h3 id="with-file-io"><a class="header" href="#with-file-io">With File I/O</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::{ValidatedPath, PathLike};
+use std::fs;
+
+fn read_config_file(path_input: &amp;str) -&gt; Result&lt;String, Box&lt;dyn std::error::Error&gt;&gt; {
+    // Validate path first
+    let path = ValidatedPath::new(path_input)?;
+    
+    // Check if file exists
+    if !path.as_path().exists() {
+        return Err(format!("Config file not found: {}", path.to_string_lossy()).into());
+    }
+    
+    // Ensure it's a file, not a directory
+    if !path.as_path().is_file() {
+        return Err(format!("Path is not a file: {}", path.to_string_lossy()).into());
+    }
+    
+    // Read the file
+    let content = fs::read_to_string(path.as_path())?;
+    Ok(content)
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="with-serde"><a class="header" href="#with-serde">With Serde</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use arrow_sus_shared::utils::path::ValidatedPath;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+struct Config {
+    #[serde(with = "validated_path_serde")]
+    output_dir: ValidatedPath,
+    #[serde(with = "validated_path_serde")]
+    input_file: ValidatedPath,
+}
+
+mod validated_path_serde {
+    use super::*;
+    use serde::{Deserializer, Serializer, Deserialize};
+    
+    pub fn serialize&lt;S&gt;(path: &amp;ValidatedPath, serializer: S) -&gt; Result&lt;S::Ok, S::Error&gt;
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&amp;path.to_string_lossy())
+    }
+    
+    pub fn deserialize&lt;'de, D&gt;(deserializer: D) -&gt; Result&lt;ValidatedPath, D::Error&gt;
+    where
+        D: Deserializer&lt;'de&gt;,
+    {
+        let s = String::deserialize(deserializer)?;
+        ValidatedPath::new(s).map_err(serde::de::Error::custom)
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="with-cli-applications"><a class="header" href="#with-cli-applications">With CLI Applications</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024">use arrow_sus_shared::utils::path::{ValidatedPath, PathValidatable};
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    /// Input file path
+    #[arg(short, long)]
+    input: String,
+    
+    /// Output directory path
+    #[arg(short, long)]
+    output: String,
+}
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let args = Args::parse();
+    
+    // Validate paths early
+    let input_path = ValidatedPath::new(&amp;args.input)
+        .map_err(|e| format!("Invalid input path '{}': {}", args.input, e))?;
+    
+    let output_path = ValidatedPath::new(&amp;args.output)
+        .map_err(|e| format!("Invalid output path '{}': {}", args.output, e))?;
+    
+    // Ensure input exists and is a file
+    if !input_path.as_path().exists() {
+        return Err(format!("Input file does not exist: {}", input_path.to_string_lossy()).into());
+    }
+    
+    if !input_path.as_path().is_file() {
+        return Err(format!("Input path is not a file: {}", input_path.to_string_lossy()).into());
+    }
+    
+    // Ensure output directory exists or can be created
+    if let Some(parent) = output_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    
+    // Process files...
+    process_files(input_path, output_path)?;
+    
+    Ok(())
+}</code></pre></pre>
+<h2 id="testing"><a class="header" href="#testing">Testing</a></h2>
+<p>The path utilities include comprehensive test coverage through doctests:</p>
+<pre><code class="language-bash"># Run all path-related doctests
+cargo test --doc path
+
+# Run specific doctest
+cargo test --doc "PathValidatable"
+</code></pre>
+<p>All public APIs include working examples that serve as both documentation and tests, ensuring the code examples remain accurate and functional.</p>
+<h2 id="migration-guide"><a class="header" href="#migration-guide">Migration Guide</a></h2>
+<h3 id="from-stdpath"><a class="header" href="#from-stdpath">From std::path</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Old approach
+use std::path::{Path, PathBuf};
+
+let path_str = "/some/path";
+let path = Path::new(path_str);
+if path.exists() {
+    // Process path
+}
+
+// New approach
+use arrow_sus_shared::utils::path::{ValidatedPath, PathLike};
+
+let path_str = "/some/path";
+let path = ValidatedPath::new(path_str)?; // Validation happens here
+if path.as_path().exists() {
+    // Process validated path
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="from-string-based-paths"><a class="header" href="#from-string-based-paths">From String-based Paths</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Old approach
+fn process_path(path: String) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    if path.is_empty() {
+        return Err("Empty path".into());
+    }
+    // Manual validation...
+    let pathbuf = PathBuf::from(path);
+    // Process pathbuf
+    Ok(())
+}
+
+// New approach
+use arrow_sus_shared::utils::path::ValidatedPath;
+
+fn process_path(path: String) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let validated_path = ValidatedPath::new(path)?; // All validation handled
+    // Process validated path
+    Ok(())
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The ArrowSUS path utilities provide a robust, performant, and type-safe foundation for all path-related operations in your applications. By leveraging comprehensive validation, detailed error handling, and optimized data structures, you can build reliable file system interactions with confidence.</p>
 
                     </main>
 

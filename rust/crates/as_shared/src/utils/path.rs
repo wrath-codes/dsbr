@@ -5,7 +5,8 @@ use dashmap::DashSet;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
-use super::Result;
+use crate::core::Result;
+use crate::utils::UtilsError;
 
 /// Errors that can occur when working with paths
 #[derive(Error, Debug)]
@@ -108,7 +109,7 @@ pub static INVALID_PATH_CHARS: LazyLock<DashSet<char>> = LazyLock::new(|| {
 /// # Examples
 ///
 /// ```
-/// use arrow_sus_shared::core::path::PathValidatable;
+/// use arrow_sus_shared::utils::path::PathValidatable;
 /// use std::path::PathBuf;
 ///
 /// // String validation
@@ -385,7 +386,7 @@ impl PathValidatable for &OsString {
 /// # Examples
 ///
 /// ```
-/// use arrow_sus_shared::core::path::{PathFromInput, ValidatedPath};
+/// use arrow_sus_shared::utils::path::{PathFromInput, ValidatedPath};
 /// use std::path::PathBuf;
 ///
 /// // String parsing
@@ -417,7 +418,7 @@ impl ValidatedPath {
     /// # Examples
     ///
     /// ```
-    /// use arrow_sus_shared::core::path::ValidatedPath;
+    /// use arrow_sus_shared::utils::path::ValidatedPath;
     /// use std::path::PathBuf;
     ///
     /// // From string
@@ -479,9 +480,9 @@ impl ValidatedPath {
     pub fn join<P: AsRef<Path>>(&self, path: P) -> Result<ValidatedPath> {
         let joined = self.inner.join(path);
         if !joined.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Joined path is invalid: {}", joined.display())
-            ).into());
+            )).into());
         }
         Ok(ValidatedPath { inner: joined })
     }
@@ -496,17 +497,17 @@ impl PathFromInput for &str {
     fn parse_path(self) -> Result<ValidatedPath> {
         if !self.is_valid_path() {
             if self.is_empty() {
-                return Err(PathError::empty_path().into());
+                return Err(UtilsError::Path(PathError::empty_path()).into());
             }
             if !self.has_valid_length() {
-                return Err(PathError::path_too_long(self.len(), MAX_PATH_LENGTH).into());
+                return Err(UtilsError::Path(PathError::path_too_long(self.len(), MAX_PATH_LENGTH)).into());
             }
             if !self.has_valid_characters() {
-                return Err(PathError::invalid_characters(
+                return Err(UtilsError::Path(PathError::invalid_characters(
                     format!("Path contains invalid characters: {}", self)
-                ).into());
+                )).into());
             }
-            return Err(PathError::invalid_path(self.to_string()).into());
+            return Err(UtilsError::Path(PathError::invalid_path(self.to_string())).into());
         }
         
         Ok(ValidatedPath {
@@ -532,20 +533,20 @@ impl PathFromInput for PathBuf {
         if !self.is_valid_path() {
             let path_str = self.to_string_lossy();
             if path_str.is_empty() {
-                return Err(PathError::empty_path().into());
+                return Err(UtilsError::Path(PathError::empty_path()).into());
             }
             if !self.has_valid_length() {
-                return Err(PathError::path_too_long(
+                return Err(UtilsError::Path(PathError::path_too_long(
                     self.as_os_str().len(), 
                     MAX_PATH_LENGTH
-                ).into());
+                )).into());
             }
             if !self.has_valid_characters() {
-                return Err(PathError::invalid_characters(
+                return Err(UtilsError::Path(PathError::invalid_characters(
                     format!("Path contains invalid characters: {}", path_str)
-                ).into());
+                )).into());
             }
-            return Err(PathError::invalid_path(path_str.to_string()).into());
+            return Err(UtilsError::Path(PathError::invalid_path(path_str.to_string())).into());
         }
         
         Ok(ValidatedPath { inner: self })
@@ -590,7 +591,7 @@ impl PathFromInput for &OsStr {
 /// # Examples
 ///
 /// ```
-/// use arrow_sus_shared::core::path::PathLike;
+/// use arrow_sus_shared::utils::path::PathLike;
 /// use std::path::PathBuf;
 ///
 /// // Working with PathBuf
@@ -646,16 +647,16 @@ impl PathLike for PathBuf {
     fn as_string(&self) -> Result<String> {
         self.to_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| PathError::invalid_utf8(
+            .ok_or_else(|| UtilsError::Path(PathError::invalid_utf8(
                 format!("Path contains invalid UTF-8: {}", self.display())
-            ).into())
+            )).into())
     }
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {}", self.display())
-            ).into());
+            )).into());
         }
         Ok(())
     }
@@ -674,9 +675,9 @@ impl PathLike for PathBuf {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::canonicalize(self.as_path())
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {}: {}", self.display(), e)
-            ).into())
+            )).into())
     }
 }
 
@@ -692,16 +693,16 @@ impl PathLike for &Path {
     fn as_string(&self) -> Result<String> {
         self.to_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| PathError::invalid_utf8(
+            .ok_or_else(|| UtilsError::Path(PathError::invalid_utf8(
                 format!("Path contains invalid UTF-8: {}", self.display())
-            ).into())
+            )).into())
     }
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {}", self.display())
-            ).into());
+            )).into());
         }
         Ok(())
     }
@@ -720,9 +721,9 @@ impl PathLike for &Path {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::canonicalize(*self)
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {}: {}", self.display(), e)
-            ).into())
+            )).into())
     }
 }
 
@@ -741,7 +742,7 @@ impl PathLike for String {
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(self.clone()).into());
+            return Err(UtilsError::Path(PathError::invalid_path(self.clone())).into());
         }
         Ok(())
     }
@@ -760,9 +761,9 @@ impl PathLike for String {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -781,7 +782,7 @@ impl PathLike for &String {
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path((*self).clone()).into());
+            return Err(UtilsError::Path(PathError::invalid_path((*self).clone())).into());
         }
         Ok(())
     }
@@ -800,9 +801,9 @@ impl PathLike for &String {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -818,16 +819,16 @@ impl PathLike for OsStr {
     fn as_string(&self) -> Result<String> {
         self.to_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| PathError::invalid_utf8(
+            .ok_or_else(|| UtilsError::Path(PathError::invalid_utf8(
                 format!("OsStr contains invalid UTF-8: {:?}", self)
-            ).into())
+            )).into())
     }
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {:?}", self)
-            ).into());
+            )).into());
         }
         Ok(())
     }
@@ -846,9 +847,9 @@ impl PathLike for OsStr {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {:?}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -864,16 +865,16 @@ impl PathLike for &OsStr {
     fn as_string(&self) -> Result<String> {
         self.to_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| PathError::invalid_utf8(
+            .ok_or_else(|| UtilsError::Path(PathError::invalid_utf8(
                 format!("OsStr contains invalid UTF-8: {:?}", self)
-            ).into())
+            )).into())
     }
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {:?}", self)
-            ).into());
+            )).into());
         }
         Ok(())
     }
@@ -892,9 +893,9 @@ impl PathLike for &OsStr {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {:?}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -910,16 +911,16 @@ impl PathLike for OsString {
     fn as_string(&self) -> Result<String> {
         self.to_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| PathError::invalid_utf8(
+            .ok_or_else(|| UtilsError::Path(PathError::invalid_utf8(
                 format!("OsString contains invalid UTF-8: {:?}", self)
-            ).into())
+            )).into())
     }
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {:?}", self)
-            ).into());
+            )).into());
         }
         Ok(())
     }
@@ -938,9 +939,9 @@ impl PathLike for OsString {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {:?}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -956,16 +957,16 @@ impl PathLike for &OsString {
     fn as_string(&self) -> Result<String> {
         self.to_str()
             .map(|s| s.to_string())
-            .ok_or_else(|| PathError::invalid_utf8(
+            .ok_or_else(|| UtilsError::Path(PathError::invalid_utf8(
                 format!("OsString contains invalid UTF-8: {:?}", self)
-            ).into())
+            )).into())
     }
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {:?}", self)
-            ).into());
+            )).into());
         }
         Ok(())
     }
@@ -984,9 +985,9 @@ impl PathLike for &OsString {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {:?}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -1005,7 +1006,7 @@ impl PathLike for &str {
     
     fn validate(&self) -> Result<()> {
         if !self.is_valid_path() {
-            return Err(PathError::invalid_path(self.to_string()).into());
+            return Err(UtilsError::Path(PathError::invalid_path(self.to_string())).into());
         }
         Ok(())
     }
@@ -1024,9 +1025,9 @@ impl PathLike for &str {
     
     fn canonicalize(&self) -> Result<PathBuf> {
         Path::new(self).canonicalize()
-            .map_err(|e| PathError::cannot_convert_path(
+            .map_err(|e| UtilsError::Path(PathError::cannot_convert_path(
                 format!("Cannot canonicalize path {}: {}", self, e)
-            ).into())
+            )).into())
     }
 }
 
@@ -1037,7 +1038,7 @@ impl ValidatedPath {
     /// # Examples
     ///
     /// ```
-    /// use arrow_sus_shared::core::path::ValidatedPath;
+    /// use arrow_sus_shared::utils::path::ValidatedPath;
     /// use std::path::PathBuf;
     ///
     /// assert!(ValidatedPath::is_valid("/valid/path"));
@@ -1057,7 +1058,7 @@ impl ValidatedPath {
     /// # Examples
     ///
     /// ```
-    /// use arrow_sus_shared::core::path::ValidatedPath;
+    /// use arrow_sus_shared::utils::path::ValidatedPath;
     ///
     /// assert!(ValidatedPath::validate("/valid/path").is_ok());
     /// assert!(ValidatedPath::validate("").is_err());
@@ -1069,11 +1070,11 @@ impl ValidatedPath {
     /// ```
     pub fn validate<T: PathValidatable>(input: T) -> Result<()> {
         if !input.is_valid_path() {
-            return Err(PathError::invalid_path(
+            return Err(UtilsError::Path(PathError::invalid_path(
                 "Invalid path provided".to_string()
-            ).into());
+            )).into());
         }
         Ok(())
     }
 }
-
+    

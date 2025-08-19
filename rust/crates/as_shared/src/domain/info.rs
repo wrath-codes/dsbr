@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::core::{path::PathLike, Result};
+use crate::core::Result;
+use crate::utils::path::PathLike;
     
 pub trait Info {
     fn name(&self) -> Result<String>;
