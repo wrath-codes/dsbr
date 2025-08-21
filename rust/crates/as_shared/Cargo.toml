@@ -26,7 +26,7 @@ thiserror = { workspace = true, optional = false }
 chrono = { workspace = true}
 regex = { workspace = true }
 once_cell = { workspace = true }
-dashmap = { workspace = true, features = ["inline"] }
+dashmap = { workspace = true}
 bytes = { workspace = true }
 futures = { workspace = true }
 
