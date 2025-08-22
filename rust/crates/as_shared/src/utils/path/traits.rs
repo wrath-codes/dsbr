@@ -265,24 +265,19 @@ pub trait PathFromInput {
 
 impl PathFromInput for &str {
     fn parse_path(self) -> Result<ValidatedPath> {
-        if !self.is_valid_path() {
-            if self.is_empty() {
-                return Err(UtilsError::Path(PathError::empty_path()).into());
-            }
-            if !self.has_valid_length() {
-                return Err(UtilsError::Path(PathError::path_too_long(self.len(), MAX_PATH_LENGTH)).into());
-            }
-            if !self.has_valid_characters() {
-                return Err(UtilsError::Path(PathError::invalid_characters(
+        match self.is_valid_path() {
+            true => Ok(ValidatedPath {
+                inner: PathBuf::from(self)
+            }),
+            false => match (self.is_empty(), self.has_valid_length(), self.has_valid_characters()) {
+                (true, _, _) => Err(UtilsError::Path(PathError::empty_path()).into()),
+                (_, false, _) => Err(UtilsError::Path(PathError::path_too_long(self.len(), MAX_PATH_LENGTH)).into()),
+                (_, _, false) => Err(UtilsError::Path(PathError::invalid_characters(
                     format!("Path contains invalid characters: {}", self)
-                )).into());
+                )).into()),
+                _ => Err(UtilsError::Path(PathError::invalid_path(self.to_string())).into()),
             }
-            return Err(UtilsError::Path(PathError::invalid_path(self.to_string())).into());
         }
-        
-        Ok(ValidatedPath {
-            inner: PathBuf::from(self)
-        })
     }
 }
 
@@ -300,26 +295,23 @@ impl PathFromInput for &String {
 
 impl PathFromInput for PathBuf {
     fn parse_path(self) -> Result<ValidatedPath> {
-        if !self.is_valid_path() {
-            let path_str = self.to_string_lossy();
-            if path_str.is_empty() {
-                return Err(UtilsError::Path(PathError::empty_path()).into());
+        match self.is_valid_path() {
+            true => Ok(ValidatedPath { inner: self }),
+            false => {
+                let path_str = self.to_string_lossy();
+                match (path_str.is_empty(), self.has_valid_length(), self.has_valid_characters()) {
+                    (true, _, _) => Err(UtilsError::Path(PathError::empty_path()).into()),
+                    (_, false, _) => Err(UtilsError::Path(PathError::path_too_long(
+                        self.as_os_str().len(),
+                        MAX_PATH_LENGTH
+                    )).into()),
+                    (_, _, false) => Err(UtilsError::Path(PathError::invalid_characters(
+                        format!("Path contains invalid characters: {}", path_str)
+                    )).into()),
+                    _ => Err(UtilsError::Path(PathError::invalid_path(path_str.to_string())).into()),
+                }
             }
-            if !self.has_valid_length() {
-                return Err(UtilsError::Path(PathError::path_too_long(
-                    self.as_os_str().len(), 
-                    MAX_PATH_LENGTH
-                )).into());
-            }
-            if !self.has_valid_characters() {
-                return Err(UtilsError::Path(PathError::invalid_characters(
-                    format!("Path contains invalid characters: {}", path_str)
-                )).into());
-            }
-            return Err(UtilsError::Path(PathError::invalid_path(path_str.to_string())).into());
         }
-        
-        Ok(ValidatedPath { inner: self })
     }
 }
 
@@ -401,12 +393,12 @@ impl PathLike for PathBuf {
     }
     
     fn validate(&self) -> Result<()> {
-        if !self.is_valid_path() {
-            return Err(UtilsError::Path(PathError::invalid_path(
+        match self.is_valid_path() {
+            true => Ok(()),
+            false => Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {}", self.display())
-            )).into());
+            )).into()),
         }
-        Ok(())
     }
     
     fn exists(&self) -> bool {
@@ -447,12 +439,12 @@ impl PathLike for &Path {
     }
     
     fn validate(&self) -> Result<()> {
-        if !self.is_valid_path() {
-            return Err(UtilsError::Path(PathError::invalid_path(
+        match self.is_valid_path() {
+            true => Ok(()),
+            false => Err(UtilsError::Path(PathError::invalid_path(
                 format!("Invalid path: {}", self.display())
-            )).into());
+            )).into()),
         }
-        Ok(())
     }
     
     fn exists(&self) -> bool {
@@ -489,10 +481,10 @@ impl PathLike for String {
     }
     
     fn validate(&self) -> Result<()> {
-        if !self.is_valid_path() {
-            return Err(UtilsError::Path(PathError::invalid_path(self.clone())).into());
+        match self.is_valid_path() {
+            true => Ok(()),
+            false => Err(UtilsError::Path(PathError::invalid_path(self.clone())).into()),
         }
-        Ok(())
     }
     
     fn exists(&self) -> bool {
@@ -529,10 +521,10 @@ impl PathLike for &String {
     }
     
     fn validate(&self) -> Result<()> {
-        if !self.is_valid_path() {
-            return Err(UtilsError::Path(PathError::invalid_path((*self).clone())).into());
+        match self.is_valid_path() {
+            true => Ok(()),
+            false => Err(UtilsError::Path(PathError::invalid_path((*self).clone())).into()),
         }
-        Ok(())
     }
     
     fn exists(&self) -> bool {

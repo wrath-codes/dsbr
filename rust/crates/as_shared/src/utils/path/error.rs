@@ -8,17 +8,17 @@ pub const MAX_PATH_LENGTH: usize = 512;
 /// Set of invalid characters for paths on Windows (most restrictive)
 pub static INVALID_PATH_CHARS: LazyLock<DashSet<char>> = LazyLock::new(|| {
     let chars = DashSet::new();
-    chars.insert('<');
-    chars.insert('>');
-    chars.insert(':');
-    chars.insert('"');
-    chars.insert('|');
-    chars.insert('?');
-    chars.insert('*');
-    // Control characters (0-31)
-    for c in 0..32 {
-        chars.insert(char::from(c));
-    }
+    
+    // Insert specific invalid characters
+    ['<', '>', ':', '"', '|', '?', '*']
+        .iter()
+        .for_each(|&c| { chars.insert(c); });
+    
+    // Insert control characters (0-31) using functional approach
+    (0..32)
+        .map(char::from)
+        .for_each(|c| { chars.insert(c); });
+    
     chars
 });
 

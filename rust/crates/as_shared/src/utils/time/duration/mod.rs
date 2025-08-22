@@ -65,11 +65,19 @@ impl Duration {
     
     /// Create a Duration from individual components
     pub fn from_components(hours: u64, minutes: u64, seconds: u64, millis: u64, nanos: u64) -> Self {
-        let total = hours * Self::NANOS_PER_HOUR +
-                   minutes * Self::NANOS_PER_MINUTE +
-                   seconds * Self::NANOS_PER_SECOND +
-                   millis * Self::NANOS_PER_MILLI +
-                   nanos;
+        let components = [
+            (hours, Self::NANOS_PER_HOUR),
+            (minutes, Self::NANOS_PER_MINUTE),
+            (seconds, Self::NANOS_PER_SECOND),
+            (millis, Self::NANOS_PER_MILLI),
+            (nanos, 1),
+        ];
+        
+        let total = components
+            .iter()
+            .map(|(value, multiplier)| value * multiplier)
+            .sum();
+            
         Self { total_nanos: total }
     }
     
@@ -186,12 +194,12 @@ impl Duration {
     
     /// Divide duration by a divisor
     pub fn divide(&self, divisor: u64) -> Result<Duration> {
-        if divisor == 0 {
-            return Err(UtilsError::Duration(
+        match divisor {
+            0 => Err(UtilsError::Duration(
                 DurationError::arithmetic_error("Cannot divide duration by zero")
-            ).into());
+            ).into()),
+            d => Ok(Duration { total_nanos: self.total_nanos / d }),
         }
-        Ok(Duration { total_nanos: self.total_nanos / divisor })
     }
     
     // === Comparison methods ===
@@ -220,36 +228,32 @@ impl Duration {
         let s = self.seconds();
         let ms = self.millis();
         
-        if total_hours > 0 {
-            if total_hours >= 24 {
+        match (total_hours, m, s, ms) {
+            (h, _, _, _) if h >= 24 => {
                 let days = self.total_days();
-                let remaining_hours = total_hours % 24;
-                if remaining_hours > 0 || m > 0 || s > 0 {
-                    format!("{}d {}h {}m {}s", days, remaining_hours, m, s)
-                } else {
-                    format!("{}d", days)
+                let remaining_hours = h % 24;
+                match (remaining_hours, m, s) {
+                    (0, 0, 0) => format!("{}d", days),
+                    _ => format!("{}d {}h {}m {}s", days, remaining_hours, m, s),
                 }
-            } else {
-                format!("{}h {}m {}s", total_hours, m, s)
             }
-        } else if m > 0 {
-            if s > 0 || ms > 0 {
-                format!("{}m {}s", m, s)
-            } else {
-                format!("{}m", m)
+            (h, _, _, _) if h > 0 => format!("{}h {}m {}s", h, m, s),
+            (0, m, _, _) if m > 0 => match (s, ms) {
+                (0, 0) => format!("{}m", m),
+                _ => format!("{}m {}s", m, s),
+            },
+            (0, 0, s, ms) if s > 0 => match ms {
+                0 => format!("{}s", s),
+                _ => format!("{}.{:03}s", s, ms),
+            },
+            (0, 0, 0, ms) if ms > 0 => format!("{}ms", ms),
+            _ => {
+                let total_micros = self.total_micros();
+                match total_micros {
+                    0 => format!("{}ns", self.total_nanos),
+                    _ => format!("{}μs", total_micros),
+                }
             }
-        } else if s > 0 {
-            if ms > 0 {
-                format!("{}.{:03}s", s, ms)
-            } else {
-                format!("{}s", s)
-            }
-        } else if ms > 0 {
-            format!("{}ms", ms)
-        } else if self.total_micros() > 0 {
-            format!("{}μs", self.total_micros())
-        } else {
-            format!("{}ns", self.total_nanos)
         }
     }
     
@@ -278,34 +282,40 @@ impl Duration {
         let seconds = (self.total_nanos % Self::NANOS_PER_MINUTE) / Self::NANOS_PER_SECOND;
         let subsec_nanos = self.total_nanos % Self::NANOS_PER_SECOND;
         
-        let mut result = String::from("PT");
+        let mut components = Vec::new();
         
+        // Add days component if present
         if days > 0 {
-            result = format!("P{}DT", days);
+            components.push(format!("P{}DT", days));
+        } else {
+            components.push("PT".to_string());
         }
         
-        if hours > 0 {
-            result.push_str(&format!("{}H", hours));
-        }
+        // Add time components using functional approach
+        [
+            (hours, "H"),
+            (minutes, "M"),
+        ]
+        .iter()
+        .filter(|(value, _)| *value > 0)
+        .for_each(|(value, unit)| components.push(format!("{}{}", value, unit)));
         
-        if minutes > 0 {
-            result.push_str(&format!("{}M", minutes));
-        }
-        
-        if seconds > 0 || subsec_nanos > 0 {
-            if subsec_nanos > 0 {
-                let fractional = subsec_nanos as f64 / Self::NANOS_PER_SECOND as f64;
-                result.push_str(&format!("{:.9}S", seconds as f64 + fractional));
-            } else {
-                result.push_str(&format!("{}S", seconds));
+        // Handle seconds with potential fractional part
+        match (seconds, subsec_nanos) {
+            (0, 0) => {
+                // Only add seconds if no other time components were added
+                if components.len() == 1 {
+                    components.push("0S".to_string());
+                }
+            }
+            (s, 0) => components.push(format!("{}S", s)),
+            (s, ns) => {
+                let fractional = ns as f64 / Self::NANOS_PER_SECOND as f64;
+                components.push(format!("{:.9}S", s as f64 + fractional));
             }
         }
         
-        if result == "PT" {
-            "PT0S".to_string()
-        } else {
-            result
-        }
+        components.join("")
     }
     
     // === Parsing methods ===
@@ -325,77 +335,98 @@ impl Duration {
     
     /// Parse HH:MM:SS format
     fn parse_hms_format(input: &str) -> Result<Duration> {
-        let parts: Vec<&str> = input.split(':').collect();
-        if parts.len() != 3 {
-            return Err(UtilsError::Duration(
+        let mut parts = input.split(':');
+        
+        let (hours, minutes, seconds) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(h), Some(m), Some(s), None) => {
+                let hours = h.parse::<u64>()
+                    .map_err(|_| UtilsError::Duration(
+                        DurationError::cannot_parse_duration("Invalid hours in HH:MM:SS format")
+                    ))?;
+                
+                let minutes = m.parse::<u64>()
+                    .map_err(|_| UtilsError::Duration(
+                        DurationError::cannot_parse_duration("Invalid minutes in HH:MM:SS format")
+                    ))?;
+                
+                let seconds = s.parse::<u64>()
+                    .map_err(|_| UtilsError::Duration(
+                        DurationError::cannot_parse_duration("Invalid seconds in HH:MM:SS format")
+                    ))?;
+                
+                (hours, minutes, seconds)
+            }
+            _ => return Err(UtilsError::Duration(
                 DurationError::cannot_parse_duration("Invalid HH:MM:SS format")
-            ).into());
-        }
+            ).into()),
+        };
         
-        let hours: u64 = parts[0].parse()
-            .map_err(|_| UtilsError::Duration(
-                DurationError::cannot_parse_duration("Invalid hours in HH:MM:SS format")
-            ))?;
-        
-        let minutes: u64 = parts[1].parse()
-            .map_err(|_| UtilsError::Duration(
-                DurationError::cannot_parse_duration("Invalid minutes in HH:MM:SS format")
-            ))?;
-        
-        let seconds: u64 = parts[2].parse()
-            .map_err(|_| UtilsError::Duration(
-                DurationError::cannot_parse_duration("Invalid seconds in HH:MM:SS format")
-            ))?;
-        
-        if minutes >= 60 || seconds >= 60 {
-            return Err(UtilsError::Duration(
+        match (minutes, seconds) {
+            (m, s) if m >= 60 || s >= 60 => Err(UtilsError::Duration(
                 DurationError::invalid_time_component("Minutes and seconds must be less than 60")
-            ).into());
+            ).into()),
+            _ => Ok(Duration::from_components(hours, minutes, seconds, 0, 0)),
         }
-        
-        Ok(Duration::from_components(hours, minutes, seconds, 0, 0))
     }
     
     /// Parse component format like "1h30m45s"
     fn parse_component_format(input: &str) -> Result<Duration> {
-        let mut total_nanos = 0u64;
-        let mut current_number = String::new();
+        use std::str::Chars;
         
-        for ch in input.chars() {
-            if ch.is_ascii_digit() {
-                current_number.push(ch);
-            } else if !current_number.is_empty() {
-                let value: u64 = current_number.parse()
-                    .map_err(|_| UtilsError::Duration(
-                        DurationError::cannot_parse_duration(format!("Invalid number: {}", current_number))
-                    ))?;
-                
-                let multiplier = match ch.to_ascii_lowercase() {
-                    'd' => Self::NANOS_PER_DAY,
-                    'h' => Self::NANOS_PER_HOUR,
-                    'm' => Self::NANOS_PER_MINUTE,
-                    's' => Self::NANOS_PER_SECOND,
-                    _ => return Err(UtilsError::Duration(
-                        DurationError::cannot_parse_duration(format!("Unknown time unit: {}", ch))
-                    ).into()),
-                };
-                
-                total_nanos = total_nanos.checked_add(value.checked_mul(multiplier)
-                    .ok_or_else(|| UtilsError::Duration(
-                        DurationError::overflow("Duration component would overflow")
-                    ))?)
-                    .ok_or_else(|| UtilsError::Duration(
-                        DurationError::overflow("Total duration would overflow")
-                    ))?;
-                
-                current_number.clear();
+        fn parse_number_and_unit(chars: &mut std::iter::Peekable<Chars>) -> Option<(u64, char)> {
+            // Skip whitespace
+            while chars.peek() == Some(&' ') {
+                chars.next();
             }
+            
+            // Collect digits
+            let mut number_str = String::new();
+            while let Some(&ch) = chars.peek() {
+                if ch.is_ascii_digit() {
+                    number_str.push(chars.next().unwrap());
+                } else {
+                    break;
+                }
+            }
+            
+            if number_str.is_empty() {
+                return None;
+            }
+            
+            let value = number_str.parse::<u64>().ok()?;
+            let unit = chars.next()?;
+            
+            Some((value, unit))
         }
         
-        if !current_number.is_empty() {
-            return Err(UtilsError::Duration(
-                DurationError::cannot_parse_duration("Number without unit at end of string")
-            ).into());
+        let mut chars = input.chars().peekable();
+        let mut total_nanos = 0u64;
+        
+        while chars.peek().is_some() {
+            let (value, unit) = parse_number_and_unit(&mut chars)
+                .ok_or_else(|| UtilsError::Duration(
+                    DurationError::cannot_parse_duration("Invalid format: expected number followed by unit")
+                ))?;
+            
+            let multiplier = match unit.to_ascii_lowercase() {
+                'd' => Self::NANOS_PER_DAY,
+                'h' => Self::NANOS_PER_HOUR,
+                'm' => Self::NANOS_PER_MINUTE,
+                's' => Self::NANOS_PER_SECOND,
+                _ => return Err(UtilsError::Duration(
+                    DurationError::cannot_parse_duration(format!("Unknown time unit: {}", unit))
+                ).into()),
+            };
+            
+            let component_nanos = value.checked_mul(multiplier)
+                .ok_or_else(|| UtilsError::Duration(
+                    DurationError::overflow("Duration component would overflow")
+                ))?;
+            
+            total_nanos = total_nanos.checked_add(component_nanos)
+                .ok_or_else(|| UtilsError::Duration(
+                    DurationError::overflow("Total duration would overflow")
+                ))?;
         }
         
         Ok(Duration { total_nanos })

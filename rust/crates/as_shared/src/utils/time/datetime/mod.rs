@@ -45,39 +45,42 @@ impl DateTime {
     
     /// Create a new DateTime with validation
     pub fn new(year: Year, month: Month, day: Day, hour: u8, minute: u8, second: u8, nanosecond: u32) -> Result<Self> {
-        // Validate time components
-        if hour > 23 {
-            return Err(UtilsError::DateTime(
+        // Validate time components using match statements
+        match hour {
+            0..=23 => {},
+            _ => return Err(UtilsError::DateTime(
                 DateTimeError::invalid_time_component(format!("Hour must be 0-23, got {}", hour))
-            ).into());
+            ).into()),
         }
         
-        if minute > 59 {
-            return Err(UtilsError::DateTime(
+        match minute {
+            0..=59 => {},
+            _ => return Err(UtilsError::DateTime(
                 DateTimeError::invalid_time_component(format!("Minute must be 0-59, got {}", minute))
-            ).into());
+            ).into()),
         }
         
-        if second > 59 {
-            return Err(UtilsError::DateTime(
+        match second {
+            0..=59 => {},
+            _ => return Err(UtilsError::DateTime(
                 DateTimeError::invalid_time_component(format!("Second must be 0-59, got {}", second))
-            ).into());
+            ).into()),
         }
         
-        if nanosecond >= 1_000_000_000 {
-            return Err(UtilsError::DateTime(
+        match nanosecond {
+            0..=999_999_999 => {},
+            _ => return Err(UtilsError::DateTime(
                 DateTimeError::invalid_time_component(format!("Nanosecond must be 0-999999999, got {}", nanosecond))
-            ).into());
+            ).into()),
         }
         
         // Validate that the date is valid
-        if !day.is_valid_for_month(&month, &year) {
-            return Err(UtilsError::DateTime(
+        match day.is_valid_for_month(&month, &year) {
+            true => Ok(Self { year, month, day, hour, minute, second, nanosecond }),
+            false => Err(UtilsError::DateTime(
                 DateTimeError::invalid_date_component(format!("Day {} is not valid for {} {}", day.day, month.to_en(), year.year))
-            ).into());
+            ).into()),
         }
-        
-        Ok(Self { year, month, day, hour, minute, second, nanosecond })
     }
     
     /// Create from your existing types with time
@@ -166,28 +169,32 @@ impl DateTime {
     pub fn from_iso8601(input: &str) -> Result<Self> {
         let cleaned = input.trim_end_matches('Z');
         
-        // Try with fractional seconds
-        if let Ok(naive) = NaiveDateTime::parse_from_str(cleaned, "%Y-%m-%dT%H:%M:%S%.f") {
-            return Self::from_chrono_naive(&naive);
+        // Try parsing in order of specificity using functional approach
+        let parse_attempts = [
+            ("%Y-%m-%dT%H:%M:%S%.f", "with fractional seconds"),
+            ("%Y-%m-%dT%H:%M:%S", "without fractional seconds"),
+        ];
+        
+        // Try datetime formats first
+        for (pattern, _description) in parse_attempts.iter() {
+            if let Ok(naive) = NaiveDateTime::parse_from_str(cleaned, pattern) {
+                return Self::from_chrono_naive(&naive);
+            }
         }
         
-        // Try without fractional seconds
-        if let Ok(naive) = NaiveDateTime::parse_from_str(cleaned, "%Y-%m-%dT%H:%M:%S") {
-            return Self::from_chrono_naive(&naive);
+        // Try date only format
+        match chrono::NaiveDate::parse_from_str(cleaned, "%Y-%m-%d") {
+            Ok(date) => {
+                let naive = date.and_hms_opt(0, 0, 0)
+                    .ok_or_else(|| UtilsError::DateTime(
+                        DateTimeError::chrono_conversion("Failed to create time from date")
+                    ))?;
+                Self::from_chrono_naive(&naive)
+            }
+            Err(_) => Err(UtilsError::DateTime(
+                DateTimeError::cannot_parse_datetime(format!("Invalid ISO8601 format: {}", input))
+            ).into()),
         }
-        
-        // Try date only
-        if let Ok(date) = chrono::NaiveDate::parse_from_str(cleaned, "%Y-%m-%d") {
-            let naive = date.and_hms_opt(0, 0, 0)
-                .ok_or_else(|| UtilsError::DateTime(
-                    DateTimeError::chrono_conversion("Failed to create time from date")
-                ))?;
-            return Self::from_chrono_naive(&naive);
-        }
-        
-        Err(UtilsError::DateTime(
-            DateTimeError::cannot_parse_datetime(format!("Invalid ISO8601 format: {}", input))
-        ).into())
     }
     
     /// Parse YYYYMMDD format: "20240315" (assumes start of day)
@@ -211,48 +218,54 @@ impl DateTime {
     
     /// Parse YYYY-MM-DD format: "2024-03-15" (assumes start of day)
     pub fn from_yyyy_mm_dd(input: &str) -> Result<Self> {
-        let parts: Vec<&str> = input.split('-').collect();
-        if parts.len() != 3 {
-            return Err(UtilsError::DateTime(
-                DateTimeError::invalid_format("YYYY-MM-DD format must have exactly 3 parts separated by '-'")
-            ).into());
-        }
+        let mut parts = input.split('-');
         
-        let year = Year::from(parts[0])?;
-        let month = Month::from(parts[1])?;
-        let day = Day::from(parts[2])?;
+        let (year_str, month_str, day_str) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(y), Some(m), Some(d), None) => (y, m, d),
+            _ => return Err(UtilsError::DateTime(
+                DateTimeError::invalid_format("YYYY-MM-DD format must have exactly 3 parts separated by '-'")
+            ).into()),
+        };
+        
+        let year = Year::from(year_str)?;
+        let month = Month::from(month_str)?;
+        let day = Day::from(day_str)?;
         
         Self::new(year, month, day, 0, 0, 0, 0)
     }
     
     /// Parse DD/MM/YYYY format: "15/03/2024" (assumes start of day)
     pub fn from_dd_mm_yyyy(input: &str) -> Result<Self> {
-        let parts: Vec<&str> = input.split('/').collect();
-        if parts.len() != 3 {
-            return Err(UtilsError::DateTime(
-                DateTimeError::invalid_format("DD/MM/YYYY format must have exactly 3 parts separated by '/'")
-            ).into());
-        }
+        let mut parts = input.split('/');
         
-        let day = Day::from(parts[0])?;
-        let month = Month::from(parts[1])?;
-        let year = Year::from(parts[2])?;
+        let (day_str, month_str, year_str) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(d), Some(m), Some(y), None) => (d, m, y),
+            _ => return Err(UtilsError::DateTime(
+                DateTimeError::invalid_format("DD/MM/YYYY format must have exactly 3 parts separated by '/'")
+            ).into()),
+        };
+        
+        let day = Day::from(day_str)?;
+        let month = Month::from(month_str)?;
+        let year = Year::from(year_str)?;
         
         Self::new(year, month, day, 0, 0, 0, 0)
     }
     
     /// Parse MM/DD/YYYY format: "03/15/2024" (assumes start of day)
     pub fn from_mm_dd_yyyy(input: &str) -> Result<Self> {
-        let parts: Vec<&str> = input.split('/').collect();
-        if parts.len() != 3 {
-            return Err(UtilsError::DateTime(
-                DateTimeError::invalid_format("MM/DD/YYYY format must have exactly 3 parts separated by '/'")
-            ).into());
-        }
+        let mut parts = input.split('/');
         
-        let month = Month::from(parts[0])?;
-        let day = Day::from(parts[1])?;
-        let year = Year::from(parts[2])?;
+        let (month_str, day_str, year_str) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(m), Some(d), Some(y), None) => (m, d, y),
+            _ => return Err(UtilsError::DateTime(
+                DateTimeError::invalid_format("MM/DD/YYYY format must have exactly 3 parts separated by '/'")
+            ).into()),
+        };
+        
+        let month = Month::from(month_str)?;
+        let day = Day::from(day_str)?;
+        let year = Year::from(year_str)?;
         
         Self::new(year, month, day, 0, 0, 0, 0)
     }
@@ -344,25 +357,40 @@ impl DateTime {
     // === Duration arithmetic ===
     
     pub fn add_duration(&self, duration: &Duration) -> Result<Self> {
-        // Convert current time to nanoseconds since start of day
-        let current_time_nanos = 
-            self.hour as u64 * 3_600_000_000_000 +
-            self.minute as u64 * 60_000_000_000 +
-            self.second as u64 * 1_000_000_000 +
-            self.nanosecond as u64;
+        // Convert current time to nanoseconds since start of day using functional approach
+        let time_components = [
+            (self.hour as u64, 3_600_000_000_000u64),
+            (self.minute as u64, 60_000_000_000u64),
+            (self.second as u64, 1_000_000_000u64),
+            (self.nanosecond as u64, 1u64),
+        ];
+        
+        let current_time_nanos = time_components
+            .iter()
+            .map(|(value, multiplier)| value * multiplier)
+            .sum::<u64>();
         
         let total_nanos = current_time_nanos + duration.total_nanos();
         
         // Calculate days to add (if time overflows)
-        let nanos_per_day = 24 * 3_600_000_000_000u64;
-        let days_to_add = total_nanos / nanos_per_day;
-        let remaining_nanos = total_nanos % nanos_per_day;
+        const NANOS_PER_DAY: u64 = 24 * 3_600_000_000_000u64;
+        let days_to_add = total_nanos / NANOS_PER_DAY;
+        let remaining_nanos = total_nanos % NANOS_PER_DAY;
         
-        // Extract new time components
-        let new_hour = (remaining_nanos / 3_600_000_000_000) as u8;
-        let new_minute = ((remaining_nanos % 3_600_000_000_000) / 60_000_000_000) as u8;
-        let new_second = ((remaining_nanos % 60_000_000_000) / 1_000_000_000) as u8;
-        let new_nanosecond = (remaining_nanos % 1_000_000_000) as u32;
+        // Extract new time components using functional approach
+        let time_divisors = [3_600_000_000_000u64, 60_000_000_000u64, 1_000_000_000u64, 1u64];
+        let mut remaining = remaining_nanos;
+        let time_values: Vec<u64> = time_divisors
+            .iter()
+            .map(|&divisor| {
+                let value = remaining / divisor;
+                remaining %= divisor;
+                value
+            })
+            .collect();
+        
+        let (new_hour, new_minute, new_second, new_nanosecond) =
+            (time_values[0] as u8, time_values[1] as u8, time_values[2] as u8, time_values[3] as u32);
         
         // Handle date rollover
         let (new_year, new_month, new_day) = self.add_days(days_to_add)?;
@@ -371,36 +399,52 @@ impl DateTime {
     }
     
     pub fn subtract_duration(&self, duration: &Duration) -> Result<Self> {
-        let current_time_nanos = 
-            self.hour as u64 * 3_600_000_000_000 +
-            self.minute as u64 * 60_000_000_000 +
-            self.second as u64 * 1_000_000_000 +
-            self.nanosecond as u64;
+        let time_components = [
+            (self.hour as u64, 3_600_000_000_000u64),
+            (self.minute as u64, 60_000_000_000u64),
+            (self.second as u64, 1_000_000_000u64),
+            (self.nanosecond as u64, 1u64),
+        ];
         
-        if duration.total_nanos() <= current_time_nanos {
-            // Same day subtraction
-            let remaining_nanos = current_time_nanos - duration.total_nanos();
-            let new_hour = (remaining_nanos / 3_600_000_000_000) as u8;
-            let new_minute = ((remaining_nanos % 3_600_000_000_000) / 60_000_000_000) as u8;
-            let new_second = ((remaining_nanos % 60_000_000_000) / 1_000_000_000) as u8;
-            let new_nanosecond = (remaining_nanos % 1_000_000_000) as u32;
-            
-            Self::new(self.year, self.month, self.day, new_hour, new_minute, new_second, new_nanosecond)
-        } else {
-            // Need to go to previous day(s)
-            let nanos_per_day = 24 * 3_600_000_000_000u64;
-            let deficit = duration.total_nanos() - current_time_nanos;
-            let days_to_subtract = (deficit / nanos_per_day) + 1;
-            let remaining_nanos = nanos_per_day - (deficit % nanos_per_day);
-            
-            let new_hour = (remaining_nanos / 3_600_000_000_000) as u8;
-            let new_minute = ((remaining_nanos % 3_600_000_000_000) / 60_000_000_000) as u8;
-            let new_second = ((remaining_nanos % 60_000_000_000) / 1_000_000_000) as u8;
-            let new_nanosecond = (remaining_nanos % 1_000_000_000) as u32;
-            
-            let (new_year, new_month, new_day) = self.subtract_days(days_to_subtract)?;
-            
-            Self::new(new_year, new_month, new_day, new_hour, new_minute, new_second, new_nanosecond)
+        let current_time_nanos = time_components
+            .iter()
+            .map(|(value, multiplier)| value * multiplier)
+            .sum::<u64>();
+        
+        const NANOS_PER_DAY: u64 = 24 * 3_600_000_000_000u64;
+        
+        let extract_time_components = |nanos: u64| -> (u8, u8, u8, u32) {
+            let time_divisors = [3_600_000_000_000u64, 60_000_000_000u64, 1_000_000_000u64, 1u64];
+            let mut remaining = nanos;
+            let time_values: Vec<u64> = time_divisors
+                .iter()
+                .map(|&divisor| {
+                    let value = remaining / divisor;
+                    remaining %= divisor;
+                    value
+                })
+                .collect();
+            (time_values[0] as u8, time_values[1] as u8, time_values[2] as u8, time_values[3] as u32)
+        };
+        
+        match duration.total_nanos() <= current_time_nanos {
+            true => {
+                // Same day subtraction
+                let remaining_nanos = current_time_nanos - duration.total_nanos();
+                let (new_hour, new_minute, new_second, new_nanosecond) = extract_time_components(remaining_nanos);
+                Self::new(self.year, self.month, self.day, new_hour, new_minute, new_second, new_nanosecond)
+            }
+            false => {
+                // Need to go to previous day(s)
+                let deficit = duration.total_nanos() - current_time_nanos;
+                let days_to_subtract = (deficit / NANOS_PER_DAY) + 1;
+                let remaining_nanos = NANOS_PER_DAY - (deficit % NANOS_PER_DAY);
+                
+                let (new_hour, new_minute, new_second, new_nanosecond) = extract_time_components(remaining_nanos);
+                let (new_year, new_month, new_day) = self.subtract_days(days_to_subtract)?;
+                
+                Self::new(new_year, new_month, new_day, new_hour, new_minute, new_second, new_nanosecond)
+            }
         }
     }
     
@@ -473,10 +517,9 @@ impl DateTime {
         let self_total = self.total_nanos_since_epoch()?;
         let other_total = other.total_nanos_since_epoch()?;
         
-        if self_total >= other_total {
-            Some(Duration::from_nanos(self_total - other_total))
-        } else {
-            None
+        match self_total >= other_total {
+            true => Some(Duration::from_nanos(self_total - other_total)),
+            false => None,
         }
     }
     
@@ -702,10 +745,9 @@ impl DateTime {
         let timestamp = chrono_dt.timestamp();
         let nanos = chrono_dt.timestamp_subsec_nanos();
         
-        if timestamp >= 0 {
-            Some(timestamp as u64 * 1_000_000_000 + nanos as u64)
-        } else {
-            None
+        match timestamp >= 0 {
+            true => Some(timestamp as u64 * 1_000_000_000 + nanos as u64),
+            false => None,
         }
     }
     

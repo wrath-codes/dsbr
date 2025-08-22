@@ -65,12 +65,12 @@ impl ValidatedPath {
     /// Join with another path component
     pub fn join<P: AsRef<Path>>(&self, path: P) -> Result<ValidatedPath> {
         let joined = self.inner.join(path);
-        if !joined.is_valid_path() {
-            return Err(UtilsError::Path(PathError::invalid_path(
+        match joined.is_valid_path() {
+            true => Ok(ValidatedPath { inner: joined }),
+            false => Err(UtilsError::Path(PathError::invalid_path(
                 format!("Joined path is invalid: {}", joined.display())
-            )).into());
+            )).into()),
         }
-        Ok(ValidatedPath { inner: joined })
     }
     
     /// Convert to string representation
@@ -85,11 +85,11 @@ impl ValidatedPath {
     
     /// Validate a path and return detailed error information
     pub fn validate<T: PathValidatable>(input: T) -> Result<()> {
-        if !input.is_valid_path() {
-            return Err(UtilsError::Path(PathError::invalid_path(
+        match input.is_valid_path() {
+            true => Ok(()),
+            false => Err(UtilsError::Path(PathError::invalid_path(
                 "Invalid path provided".to_string()
-            )).into());
+            )).into()),
         }
-        Ok(())
     }
 }

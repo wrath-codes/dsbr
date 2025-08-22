@@ -21,27 +21,55 @@ pub struct Month {
     pub name_en: &'static str,
 }
 
+impl Month {
+    // Static lookup tables for efficient month data
+    const MONTH_TEXTS: [&'static str; 12] = [
+        "01", "02", "03", "04", "05", "06",
+        "07", "08", "09", "10", "11", "12"
+    ];
+    
+    const MONTH_NAMES_PTBR: [&'static str; 12] = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+    
+    const MONTH_NAMES_SHORT: [&'static str; 12] = [
+        "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+        "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+    ];
+    
+    const MONTH_NAMES_EN: [&'static str; 12] = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    /// Create a new Month from number (internal use)
+    fn new_unchecked(month: u8) -> Self {
+        let index = (month - 1) as usize;
+        Self {
+            month,
+            text: Self::MONTH_TEXTS[index],
+            name_ptbr: Self::MONTH_NAMES_PTBR[index],
+            name_short: Self::MONTH_NAMES_SHORT[index],
+            name_en: Self::MONTH_NAMES_EN[index],
+        }
+    }
+}
+
 pub static MONTHS: LazyLock<DashSet<Month>> = LazyLock::new(|| {
     let months = DashSet::with_capacity(12);
-    months.insert(Month{month: 1, text: "01", name_ptbr: "Janeiro", name_short: "Jan", name_en: "January"});
-    months.insert(Month{month: 2, text: "02", name_ptbr: "Fevereiro", name_short: "Fev", name_en: "February"});
-    months.insert(Month{month: 3, text: "03", name_ptbr: "Março", name_short: "Mar", name_en: "March"});
-    months.insert(Month{month: 4, text: "04", name_ptbr: "Abril", name_short: "Abr", name_en: "April"});
-    months.insert(Month{month: 5, text: "05", name_ptbr: "Maio", name_short: "Mai", name_en: "May"});
-    months.insert(Month{month: 6, text: "06", name_ptbr: "Junho", name_short: "Jun", name_en: "June"});
-    months.insert(Month{month: 7, text: "07", name_ptbr: "Julho", name_short: "Jul", name_en: "July"});
-    months.insert(Month{month: 8, text: "08", name_ptbr: "Agosto", name_short: "Ago", name_en: "August"});
-    months.insert(Month{month: 9, text: "09", name_ptbr: "Setembro", name_short: "Set", name_en: "September"});
-    months.insert(Month{month: 10, text: "10", name_ptbr: "Outubro", name_short: "Out", name_en: "October"});
-    months.insert(Month{month: 11, text: "11", name_ptbr: "Novembro", name_short: "Nov", name_en: "November"});
-    months.insert(Month{month: 12, text: "12", name_ptbr: "Dezembro", name_short: "Dez", name_en: "December"});
+    (1..=12).for_each(|i| {
+        months.insert(Month::new_unchecked(i));
+    });
     months
 });
 
 pub static MONTHS_ORDERED: LazyLock<[Month; 12]> = LazyLock::new(|| {
-    let mut months_vec: Vec<Month> = MONTHS.iter().map(|month_ref| *month_ref).collect();
-    months_vec.sort_by_key(|month| month.month);
-    months_vec.try_into().unwrap()
+    (1..=12)
+        .map(Month::new_unchecked)
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
 });
 
 impl Month {
@@ -62,7 +90,10 @@ impl Month {
     pub fn previous(&self) -> Month {
         let months = Self::all_months();
         let current_index = (self.month - 1) as usize;
-        let prev_index = if current_index == 0 { 11 } else { current_index - 1 };
+        let prev_index = match current_index {
+            0 => 11,
+            i => i - 1,
+        };
         months[prev_index]
     }
     
@@ -141,23 +172,23 @@ impl Month {
     
     /// Find month by number (1-12)
     pub fn from_number(month: u8) -> Result<Month> {
-        if month < 1 || month > 12 {
-            return Err(UtilsError::Month(
+        match month {
+            1..=12 => {
+                let index = (month - 1) as usize;
+                Ok(Self::all_months()[index])
+            }
+            _ => Err(UtilsError::Month(
                 MonthError::not_valid_month_number(format!("{}", month))
-            ).into());
+            ).into()),
         }
-        
-        // Direct indexing - O(1) lookup
-        let index = (month - 1) as usize;
-        Ok(Self::all_months()[index])
     }
 
     /// Find month by text representation ("01", "02", etc.)
     pub fn from_text(text: &str) -> Result<Month> {
-        Self::all_months()
+        Self::MONTH_TEXTS
             .iter()
-            .find(|month| month.text == text)
-            .copied()
+            .position(|&month_text| month_text == text)
+            .map(|index| Self::new_unchecked((index + 1) as u8))
             .ok_or_else(|| UtilsError::Month(
                 MonthError::not_valid_month_string(text.to_string())
             ).into())
@@ -165,10 +196,10 @@ impl Month {
 
     /// Find month by English name ("January", "February", etc.)
     pub fn from_english_name(name: &str) -> Result<Month> {
-        Self::all_months()
+        Self::MONTH_NAMES_EN
             .iter()
-            .find(|month| month.name_en.eq_ignore_ascii_case(name))
-            .copied()
+            .position(|&month_name| month_name.eq_ignore_ascii_case(name))
+            .map(|index| Self::new_unchecked((index + 1) as u8))
             .ok_or_else(|| UtilsError::Month(
                 MonthError::not_valid_month_english(name.to_string())
             ).into())
@@ -176,10 +207,10 @@ impl Month {
 
     /// Find month by Portuguese name ("Janeiro", "Fevereiro", etc.)
     pub fn from_portuguese_name(name: &str) -> Result<Month> {
-        Self::all_months()
+        Self::MONTH_NAMES_PTBR
             .iter()
-            .find(|month| month.name_ptbr.to_lowercase() == name.to_lowercase())
-            .copied()
+            .position(|&month_name| month_name.to_lowercase() == name.to_lowercase())
+            .map(|index| Self::new_unchecked((index + 1) as u8))
             .ok_or_else(|| UtilsError::Month(
                 MonthError::not_valid_month_portuguese(name.to_string())
             ).into())
@@ -187,10 +218,10 @@ impl Month {
 
     /// Find month by abbreviation ("Jan", "Feb", etc.)
     pub fn from_abbreviation(abbr: &str) -> Result<Month> {
-        Self::all_months()
+        Self::MONTH_NAMES_SHORT
             .iter()
-            .find(|month| month.name_short.eq_ignore_ascii_case(abbr))
-            .copied()
+            .position(|&month_abbr| month_abbr.eq_ignore_ascii_case(abbr))
+            .map(|index| Self::new_unchecked((index + 1) as u8))
             .ok_or_else(|| UtilsError::Month(
                 MonthError::not_valid_month_abbreviation(abbr.to_string())
             ).into())
@@ -198,7 +229,10 @@ impl Month {
     
     // Private methods made public for trait implementations
     pub fn is_valid_month_number(month: u8) -> bool {
-        month >= 1 && month <= 12
+        match month {
+            1..=12 => true,
+            _ => false,
+        }
     }
 
     pub fn is_valid_month_text(text: &str) -> bool {
@@ -226,10 +260,9 @@ impl Month {
     }
 
     pub fn is_valid_month_number_string(input: &str) -> bool {
-        if let Ok(num) = input.parse::<u8>() {
-            Self::is_valid_month_number(num)
-        } else {
-            false
+        match input.parse::<u8>() {
+            Ok(num) => Self::is_valid_month_number(num),
+            Err(_) => false,
         }
     }
 

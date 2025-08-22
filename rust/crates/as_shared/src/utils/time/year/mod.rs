@@ -28,48 +28,21 @@ pub struct Year {
 /// Static storage for years (1900-2100)
 pub static YEARS: LazyLock<DashMap<i32, Year>> = LazyLock::new(|| {
     let years = DashMap::with_capacity(201); // 1900-2100 = 201 years
-    for year in MIN_YEAR..=MAX_YEAR {
+    (MIN_YEAR..=MAX_YEAR).for_each(|year| {
         years.insert(year, Year::new_unchecked(year));
-    }
+    });
     years
 });
 
 pub static YEARS_ORDERED: LazyLock<Vec<Year>> = LazyLock::new(|| {
-    (MIN_YEAR..=MAX_YEAR).map(|y| Year::new_unchecked(y)).collect()
+    (MIN_YEAR..=MAX_YEAR).map(Year::new_unchecked).collect()
 });
 
 impl Year {
     /// Create a new Year without validation (internal use only)
     fn new_unchecked(year: i32) -> Self {
-        let text_2d = match year % 100 {
-            0..=9 => match year % 100 {
-                0 => "00", 1 => "01", 2 => "02", 3 => "03", 4 => "04",
-                5 => "05", 6 => "06", 7 => "07", 8 => "08", 9 => "09",
-                _ => unreachable!(),
-            },
-            10..=99 => match year % 100 {
-                10 => "10", 11 => "11", 12 => "12", 13 => "13", 14 => "14",
-                15 => "15", 16 => "16", 17 => "17", 18 => "18", 19 => "19",
-                20 => "20", 21 => "21", 22 => "22", 23 => "23", 24 => "24",
-                25 => "25", 26 => "26", 27 => "27", 28 => "28", 29 => "29",
-                30 => "30", 31 => "31", 32 => "32", 33 => "33", 34 => "34",
-                35 => "35", 36 => "36", 37 => "37", 38 => "38", 39 => "39",
-                40 => "40", 41 => "41", 42 => "42", 43 => "43", 44 => "44",
-                45 => "45", 46 => "46", 47 => "47", 48 => "48", 49 => "49",
-                50 => "50", 51 => "51", 52 => "52", 53 => "53", 54 => "54",
-                55 => "55", 56 => "56", 57 => "57", 58 => "58", 59 => "59",
-                60 => "60", 61 => "61", 62 => "62", 63 => "63", 64 => "64",
-                65 => "65", 66 => "66", 67 => "67", 68 => "68", 69 => "69",
-                70 => "70", 71 => "71", 72 => "72", 73 => "73", 74 => "74",
-                75 => "75", 76 => "76", 77 => "77", 78 => "78", 79 => "79",
-                80 => "80", 81 => "81", 82 => "82", 83 => "83", 84 => "84",
-                85 => "85", 86 => "86", 87 => "87", 88 => "88", 89 => "89",
-                90 => "90", 91 => "91", 92 => "92", 93 => "93", 94 => "94",
-                95 => "95", 96 => "96", 97 => "97", 98 => "98", 99 => "99",
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
+        // Efficient 2-digit text generation using format
+        let text_2d = Box::leak(format!("{:02}", year % 100).into_boxed_str());
         
         // For 4-digit text, we need to handle the full range
         let text_4d = Box::leak(year.to_string().into_boxed_str());
@@ -95,10 +68,9 @@ impl Year {
     
     /// Convert 2-digit year to 4-digit using pivot logic
     fn convert_2digit_to_4digit(year_2d: i32) -> i32 {
-        if year_2d >= PIVOT_YEAR {
-            PREVIOUS_CENTURY_START + year_2d
-        } else {
-            CURRENT_CENTURY_START + year_2d
+        match year_2d >= PIVOT_YEAR {
+            true => PREVIOUS_CENTURY_START + year_2d,
+            false => CURRENT_CENTURY_START + year_2d,
         }
     }
     
@@ -122,64 +94,61 @@ impl Year {
     
     /// Find year by number (1900-2100)
     pub fn from_number(year: i32) -> Result<Year> {
-        if !year.is_valid_year() {
-            return Err(UtilsError::Year(
+        match year.is_valid_year() {
+            true => Ok(*YEARS.get(&year).unwrap()),
+            false => Err(UtilsError::Year(
                 YearError::invalid_year(year)
-            ).into());
+            ).into()),
         }
-        
-        // Direct lookup from static collection - O(1)
-        Ok(*YEARS.get(&year).unwrap())
     }
     
     /// Find year by 2-digit number with pivot logic
     pub fn from_2digit_number(year_2d: i32) -> Result<Year> {
-        if !year_2d.is_valid_2digit_year() {
-            return Err(UtilsError::Year(
+        match year_2d.is_valid_2digit_year() {
+            true => {
+                let full_year = Self::convert_2digit_to_4digit(year_2d);
+                Self::from_number(full_year)
+            }
+            false => Err(UtilsError::Year(
                 YearError::invalid_2digit_year(year_2d.to_string())
-            ).into());
+            ).into()),
         }
-        
-        let full_year = Self::convert_2digit_to_4digit(year_2d);
-        Self::from_number(full_year)
     }
     
     /// Get the next year
     pub fn next(&self) -> Result<Year> {
         let next_year = self.year + 1;
-        if next_year > MAX_YEAR {
-            return Err(UtilsError::Year(
+        match next_year > MAX_YEAR {
+            true => Err(UtilsError::Year(
                 YearError::arithmetic_overflow(format!("Cannot get next year after {}", MAX_YEAR))
-            ).into());
+            ).into()),
+            false => Self::from_number(next_year),
         }
-        Self::from_number(next_year)
     }
     
     /// Get the previous year
     pub fn previous(&self) -> Result<Year> {
         let prev_year = self.year - 1;
-        if prev_year < MIN_YEAR {
-            return Err(UtilsError::Year(
+        match prev_year < MIN_YEAR {
+            true => Err(UtilsError::Year(
                 YearError::arithmetic_overflow(format!("Cannot get previous year before {}", MIN_YEAR))
-            ).into());
+            ).into()),
+            false => Self::from_number(prev_year),
         }
-        Self::from_number(prev_year)
     }
     
     /// Add years to this year
     pub fn add_years(&self, years: i32) -> Result<Year> {
         let new_year = self.year + years;
-        if new_year > MAX_YEAR {
-            return Err(UtilsError::Year(
+        match (new_year > MAX_YEAR, new_year < MIN_YEAR) {
+            (true, _) => Err(UtilsError::Year(
                 YearError::arithmetic_overflow(format!("Adding {} years to {} would exceed maximum year {}", years, self.year, MAX_YEAR))
-            ).into());
-        }
-        if new_year < MIN_YEAR {
-            return Err(UtilsError::Year(
+            ).into()),
+            (_, true) => Err(UtilsError::Year(
                 YearError::arithmetic_overflow(format!("Adding {} years to {} would be below minimum year {}", years, self.year, MIN_YEAR))
-            ).into());
+            ).into()),
+            (false, false) => Self::from_number(new_year),
         }
-        Self::from_number(new_year)
     }
     
     /// Subtract years from this year
@@ -241,10 +210,9 @@ impl Year {
     
     /// Get the number of days in this year (365 or 366)
     pub fn days_in_year(&self) -> u16 {
-        if self.is_leap {
-            366
-        } else {
-            365
+        match self.is_leap {
+            true => 366,
+            false => 365,
         }
     }
     
@@ -253,7 +221,10 @@ impl Year {
         match month.month {
             1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
             4 | 6 | 9 | 11 => 30,
-            2 => if self.is_leap { 29 } else { 28 },
+            2 => match self.is_leap {
+                true => 29,
+                false => 28,
+            },
             _ => unreachable!("Invalid month number"),
         }
     }
@@ -388,24 +359,25 @@ impl Year {
     
     /// Check if a specific date (month and day) is valid for this year
     pub fn is_valid_date(&self, month: &Month, day: u32) -> bool {
-        if day == 0 {
-            return false;
+        match day {
+            0 => false,
+            d => {
+                let max_days = self.days_in_month(month) as u32;
+                d <= max_days
+            }
         }
-        let max_days = self.days_in_month(month) as u32;
-        day <= max_days
     }
     
     /// Get all months of this year with their start and end dates
     pub fn month_ranges(&self) -> Result<Vec<(Month, NaiveDate, NaiveDate)>> {
-        let mut ranges = Vec::with_capacity(12);
-        
-        for month in Month::all_months() {
-            let start = self.month_start(month)?;
-            let end = self.month_end(month)?;
-            ranges.push((*month, start, end));
-        }
-        
-        Ok(ranges)
+        Month::all_months()
+            .iter()
+            .map(|month| {
+                let start = self.month_start(month)?;
+                let end = self.month_end(month)?;
+                Ok((*month, start, end))
+            })
+            .collect()
     }
     
     /// Get the quarter number (1-4) for a given month
@@ -431,15 +403,13 @@ impl Year {
             ).into()),
         };
         
-        let mut months = Vec::with_capacity(3);
-        for month_num in month_range {
-            let month = Month::from_number(month_num).map_err(|e| UtilsError::Year(
-                YearError::chrono_conversion(format!("Cannot get month {}: {}", month_num, e))
-            ))?;
-            months.push(month);
-        }
-        
-        Ok(months)
+        month_range
+            .map(|month_num| {
+                Month::from_number(month_num).map_err(|e| UtilsError::Year(
+                    YearError::chrono_conversion(format!("Cannot get month {}: {}", month_num, e))
+                ).into())
+            })
+            .collect()
     }
     
     /// Public generic validation method - accepts different year types

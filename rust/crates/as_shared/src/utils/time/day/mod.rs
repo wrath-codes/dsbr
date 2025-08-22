@@ -25,57 +25,50 @@ pub struct Day {
 // Static collections following existing pattern
 pub static DAYS: LazyLock<DashSet<Day>> = LazyLock::new(|| {
     let days = DashSet::with_capacity(31);
-    for i in 1..=31 {
+    (1..=31).for_each(|i| {
         days.insert(Day::new_unchecked(i));
-    }
+    });
     days
 });
 
 pub static DAYS_ORDERED: LazyLock<[Day; 31]> = LazyLock::new(|| {
-    let mut days_vec: Vec<Day> = DAYS.iter().map(|day_ref| *day_ref).collect();
-    days_vec.sort_by_key(|day| day.day);
-    days_vec.try_into().unwrap()
+    (1..=31)
+        .map(Day::new_unchecked)
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
 });
 
 impl Day {
+    // Static lookup tables for efficient text generation
+    const DAY_TEXTS: [&'static str; 31] = [
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
+        "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+        "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"
+    ];
+    
+    const ORDINAL_EN: [&'static str; 31] = [
+        "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th",
+        "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th",
+        "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st"
+    ];
+    
+    const ORDINAL_PTBR: [&'static str; 31] = [
+        "1º", "2º", "3º", "4º", "5º", "6º", "7º", "8º", "9º", "10º",
+        "11º", "12º", "13º", "14º", "15º", "16º", "17º", "18º", "19º", "20º",
+        "21º", "22º", "23º", "24º", "25º", "26º", "27º", "28º", "29º", "30º", "31º"
+    ];
+
     /// Create a new Day without validation (internal use only)
     fn new_unchecked(day: u8) -> Self {
-        let text = match day {
-            1 => "01", 2 => "02", 3 => "03", 4 => "04", 5 => "05",
-            6 => "06", 7 => "07", 8 => "08", 9 => "09", 10 => "10",
-            11 => "11", 12 => "12", 13 => "13", 14 => "14", 15 => "15",
-            16 => "16", 17 => "17", 18 => "18", 19 => "19", 20 => "20",
-            21 => "21", 22 => "22", 23 => "23", 24 => "24", 25 => "25",
-            26 => "26", 27 => "27", 28 => "28", 29 => "29", 30 => "30",
-            31 => "31",
-            _ => unreachable!("Invalid day number"),
-        };
+        let index = (day - 1) as usize;
         
-        let ordinal_en = match day {
-            1 | 21 | 31 => match day { 1 => "1st", 21 => "21st", 31 => "31st", _ => unreachable!() },
-            2 | 22 => match day { 2 => "2nd", 22 => "22nd", _ => unreachable!() },
-            3 | 23 => match day { 3 => "3rd", 23 => "23rd", _ => unreachable!() },
-            _ => match day {
-                4 => "4th", 5 => "5th", 6 => "6th", 7 => "7th", 8 => "8th", 9 => "9th", 10 => "10th",
-                11 => "11th", 12 => "12th", 13 => "13th", 14 => "14th", 15 => "15th", 16 => "16th",
-                17 => "17th", 18 => "18th", 19 => "19th", 20 => "20th", 24 => "24th", 25 => "25th",
-                26 => "26th", 27 => "27th", 28 => "28th", 29 => "29th", 30 => "30th",
-                _ => unreachable!(),
-            }
-        };
-        
-        let ordinal_ptbr = match day {
-            1 => "1º", 2 => "2º", 3 => "3º", 4 => "4º", 5 => "5º",
-            6 => "6º", 7 => "7º", 8 => "8º", 9 => "9º", 10 => "10º",
-            11 => "11º", 12 => "12º", 13 => "13º", 14 => "14º", 15 => "15º",
-            16 => "16º", 17 => "17º", 18 => "18º", 19 => "19º", 20 => "20º",
-            21 => "21º", 22 => "22º", 23 => "23º", 24 => "24º", 25 => "25º",
-            26 => "26º", 27 => "27º", 28 => "28º", 29 => "29º", 30 => "30º",
-            31 => "31º",
-            _ => unreachable!(),
-        };
-        
-        Self { day, text, ordinal_en, ordinal_ptbr }
+        Self {
+            day,
+            text: Self::DAY_TEXTS[index],
+            ordinal_en: Self::ORDINAL_EN[index],
+            ordinal_ptbr: Self::ORDINAL_PTBR[index],
+        }
     }
     
     /// Returns all days in order (1 to 31)
@@ -93,15 +86,15 @@ impl Day {
     
     /// Find day by number (1-31)
     pub fn from_number(day: u8) -> Result<Day> {
-        if day < 1 || day > 31 {
-            return Err(UtilsError::Day(
+        match day {
+            1..=31 => {
+                let index = (day - 1) as usize;
+                Ok(Self::all_days()[index])
+            }
+            _ => Err(UtilsError::Day(
                 DayError::invalid_day(day)
-            ).into());
+            ).into()),
         }
-        
-        // Direct indexing - O(1) lookup
-        let index = (day - 1) as usize;
-        Ok(Self::all_days()[index])
     }
     
     /// Check if this day is valid for a specific month and year
@@ -117,7 +110,10 @@ impl Day {
             2 => 28, // Non-leap year February
             _ => unreachable!("Invalid month number"),
         };
-        self.day <= max_days
+        match self.day {
+            d if d <= max_days => true,
+            _ => false,
+        }
     }
     
     /// Create a NaiveDate from this day with month and year
@@ -131,83 +127,66 @@ impl Day {
         Ok(date.weekday())
     }
     
+    // Static lookup tables for weekday names
+    const WEEKDAY_NAMES_EN: [&'static str; 7] = [
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    ];
+    
+    const WEEKDAY_NAMES_PTBR: [&'static str; 7] = [
+        "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira",
+        "Sexta-feira", "Sábado", "Domingo"
+    ];
+    
+    const WEEKDAY_SHORT_EN: [&'static str; 7] = [
+        "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+    ];
+    
+    const WEEKDAY_SHORT_PTBR: [&'static str; 7] = [
+        "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"
+    ];
+
     /// Get localized weekday name
     pub fn to_weekday_name_en(&self, month: &Month, year: &Year) -> Result<&'static str> {
         let weekday = self.to_weekday(month, year)?;
-        Ok(match weekday {
-            Weekday::Mon => "Monday",
-            Weekday::Tue => "Tuesday", 
-            Weekday::Wed => "Wednesday",
-            Weekday::Thu => "Thursday",
-            Weekday::Fri => "Friday",
-            Weekday::Sat => "Saturday",
-            Weekday::Sun => "Sunday",
-        })
+        Ok(Self::WEEKDAY_NAMES_EN[weekday.num_days_from_monday() as usize])
     }
     
     pub fn to_weekday_name_ptbr(&self, month: &Month, year: &Year) -> Result<&'static str> {
         let weekday = self.to_weekday(month, year)?;
-        Ok(match weekday {
-            Weekday::Mon => "Segunda-feira",
-            Weekday::Tue => "Terça-feira",
-            Weekday::Wed => "Quarta-feira", 
-            Weekday::Thu => "Quinta-feira",
-            Weekday::Fri => "Sexta-feira",
-            Weekday::Sat => "Sábado",
-            Weekday::Sun => "Domingo",
-        })
+        Ok(Self::WEEKDAY_NAMES_PTBR[weekday.num_days_from_monday() as usize])
     }
     
     pub fn to_weekday_short_en(&self, month: &Month, year: &Year) -> Result<&'static str> {
         let weekday = self.to_weekday(month, year)?;
-        Ok(match weekday {
-            Weekday::Mon => "Mon",
-            Weekday::Tue => "Tue",
-            Weekday::Wed => "Wed", 
-            Weekday::Thu => "Thu",
-            Weekday::Fri => "Fri",
-            Weekday::Sat => "Sat",
-            Weekday::Sun => "Sun",
-        })
+        Ok(Self::WEEKDAY_SHORT_EN[weekday.num_days_from_monday() as usize])
     }
     
     pub fn to_weekday_short_ptbr(&self, month: &Month, year: &Year) -> Result<&'static str> {
         let weekday = self.to_weekday(month, year)?;
-        Ok(match weekday {
-            Weekday::Mon => "Seg",
-            Weekday::Tue => "Ter",
-            Weekday::Wed => "Qua",
-            Weekday::Thu => "Qui", 
-            Weekday::Fri => "Sex",
-            Weekday::Sat => "Sáb",
-            Weekday::Sun => "Dom",
-        })
+        Ok(Self::WEEKDAY_SHORT_PTBR[weekday.num_days_from_monday() as usize])
     }
     
     /// Navigation methods
     pub fn next(&self) -> Option<Day> {
-        if self.day >= 31 {
-            None
-        } else {
-            Some(Self::all_days()[self.day as usize]) // day + 1, but 0-indexed
+        match self.day {
+            31 => None,
+            d => Some(Self::all_days()[d as usize]), // day + 1, but 0-indexed
         }
     }
     
     pub fn previous(&self) -> Option<Day> {
-        if self.day <= 1 {
-            None
-        } else {
-            Some(Self::all_days()[(self.day - 2) as usize]) // day - 1, but 0-indexed
+        match self.day {
+            1 => None,
+            d => Some(Self::all_days()[(d - 2) as usize]), // day - 1, but 0-indexed
         }
     }
     
     /// Context-aware navigation
     pub fn next_in_month(&self, month: &Month, year: &Year) -> Option<Day> {
         let next_day = self.next()?;
-        if next_day.is_valid_for_month(month, year) {
-            Some(next_day)
-        } else {
-            None
+        match next_day.is_valid_for_month(month, year) {
+            true => Some(next_day),
+            false => None,
         }
     }
     
@@ -298,10 +277,9 @@ impl Day {
     }
     
     pub fn is_valid_day_string(input: &str) -> bool {
-        if let Ok(num) = input.parse::<u8>() {
-            Self::is_valid_day_number(num)
-        } else {
-            false
+        match input.parse::<u8>() {
+            Ok(num) => Self::is_valid_day_number(num),
+            Err(_) => false,
         }
     }
 }
