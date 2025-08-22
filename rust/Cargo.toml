@@ -1,16 +1,16 @@
 [workspace]
 resolver = "3"
-members = ["crates/as_shared"]
+members = ["crates/dsbr_core"]
 
 [workspace.package]
 edition = "2024"
 authors = ["wrath-codes and contributors"]
 license = "MIT"
-repository = "https://github.com/wrath-codes/arrowsus"
-homepage = "https://github.com/wrath-codes/arrowsus"
-documentation = "https://docs.rs/arrow-sus-shared"
+repository = "https://github.com/wrath-codes/dsbr"
+homepage = "https://github.com/wrath-codes/dsbr"
+documentation = "https://docs.rs/dsbr-core"
 readme = "README.md"
-keywords = ["arrowsus", "arrow", "data", "parsing", "polars"]
+keywords = ["dsbr", "data", "parsing", "polars"]
 categories = ["data-structures", "parsing", "database"]
 
 [workspace.metadata.docs.rs]

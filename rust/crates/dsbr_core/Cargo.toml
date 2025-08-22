@@ -1,15 +1,15 @@
 [package]
-name = "arrow-sus-shared"
+name = "dsbr-core"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/wrath-codes/arrowsus"
-homepage = "https://github.com/wrath-codes/arrowsus"
-documentation = "https://docs.rs/arrow-sus-shared"
-description = "Foundations for ArrowSUS: domain models, schemas, parsing, IO traits, and optional Polars/FTP tooling."
+repository = "https://github.com/wrath-codes/dsbr"
+homepage = "https://github.com/wrath-codes/dsbr"
+documentation = "https://docs.rs/dsbr-core"
+description = "Core foundations for DSBR: domain models, schemas, parsing, IO traits, and optional Polars/FTP tooling."
 authors = ["wrath-codes and contributors"]
 readme = "../../README.md"
-keywords = ["arrowsus", "arrow", "data", "parsing", "polars"]
+keywords = ["dsbr", "data", "parsing", "polars"]
 categories = ["data-structures", "parsing", "database"]
 # When you later add PyO3 bindings in another crate, you'll set crate-type there.
 # [lib]
